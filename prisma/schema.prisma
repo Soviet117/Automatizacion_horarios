@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,8 +7,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
+model aula {
+  id_aula      String     @id(map: "aula_pk") @db.VarChar
+  nom_aula     String     @db.VarChar
+  id_tipo_aula String     @db.VarChar
+  capacidad    Int
+  tipo_aula    tipo_aula  @relation(fields: [id_tipo_aula], references: [id_tipo_aula], onDelete: NoAction, onUpdate: NoAction, map: "aula_tipo_aula_fk")
+  horarios     horarios[]
+}
+
+model carrera {
+  id_carrera  String   @id(map: "carrera_pk") @db.VarChar
+  nom_carrera String   @db.VarChar
+  id_facultad String   @db.VarChar
+  facultad    facultad @relation(fields: [id_facultad], references: [id_facultad], onDelete: NoAction, onUpdate: NoAction, map: "carrera_facultad_fk")
+  curso       curso[]
+}
+
+model ciclo {
+  id_ciclo  Int     @id(map: "ciclo_pk") @default(autoincrement())
+  nom_ciclo String  @db.VarChar
+  curso     curso[]
+}
+
+model curso {
+  id_curso   String     @id(map: "curso_pk") @db.VarChar
+  creditos   Int
+  nom_curso  String     @db.VarChar
+  id_carrera String     @db.VarChar
+  modalidad  String     @db.VarChar
+  tipo_curso String     @db.VarChar
+  id_ciclo   Int
+  carrera    carrera    @relation(fields: [id_carrera], references: [id_carrera], onDelete: NoAction, onUpdate: NoAction, map: "curso_carrera_fk")
+  ciclo      ciclo      @relation(fields: [id_ciclo], references: [id_ciclo], onDelete: NoAction, onUpdate: NoAction, map: "curso_ciclo_fk")
+  horarios   horarios[]
+}
+
+model docente {
+  id_docente       String     @id(map: "docente_pk") @db.VarChar
+  dni_docente      String     @db.VarChar
+  nom_docente      String     @db.VarChar
+  ape_docente      String     @db.VarChar
+  nom_especialidad String     @db.VarChar
+  horarios         horarios[]
+}
+
+model facultad {
+  id_facultad  String    @id(map: "facultad_pk") @db.VarChar
+  nom_facultad String    @db.VarChar
+  carrera      carrera[]
+}
+
+model horarios {
+  id_horario     String  @id(map: "horarios_pk") @db.VarChar
+  id_curso       String  @db.VarChar
+  horario_inicio String  @db.VarChar
+  horario_fin    String  @db.VarChar
+  dia            String  @db.VarChar
+  id_aula        String  @db.VarChar
+  id_docente     String  @db.VarChar
+  aula           aula    @relation(fields: [id_aula], references: [id_aula], onDelete: NoAction, onUpdate: NoAction, map: "horarios_aula_fk")
+  curso          curso   @relation(fields: [id_curso], references: [id_curso], onDelete: NoAction, onUpdate: NoAction, map: "horarios_curso_fk")
+  docente        docente @relation(fields: [id_docente], references: [id_docente], onDelete: NoAction, onUpdate: NoAction, map: "horarios_docente_fk")
+}
+
+model tipo_aula {
+  id_tipo_aula  String @id(map: "tipo_aula_pk") @db.VarChar
+  nom_tipo_aula String @db.VarChar
+  aula          aula[]
 }
