@@ -1,235 +1,127 @@
-'use client';
-import { useState } from 'react';
-import * as XLSX from 'xlsx';
+import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
+import ExcelImport from './components/ExcelImport';
 
-export default function Home() {
-  const [rawData, setRawData] = useState<any[]>([]);
-  const [previewRows, setPreviewRows] = useState<any[]>([]);
-  const [previewColumns, setPreviewColumns] = useState<string[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [missingColumns, setMissingColumns] = useState<string[]>([]);
+async function getStats() {
+  try {
+    const [docentes, cursos, aulas] = await Promise.all([
+      prisma.docente.count(),
+      prisma.curso.count(),
+      prisma.aula.count(),
+    ]);
+    return { docentes, cursos, aulas };
+  } catch (error) {
+    console.error('Error al obtener estadísticas:', error);
+    return { docentes: 0, cursos: 0, aulas: 0 };
+  }
+}
 
-  const requiredColumns = ['curso', 'dia', 'aula', 'inicio', 'fin', 'docente'];
+export default async function HomePage() {
+  const stats = await getStats();
 
-  const normalizeKey = (key: string) =>
-    String(key ?? '')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '_')
-      .replace(/[^a-z0-9_]/g, '');
-
-  const isTimeColumn = (columnName: string) => {
-    const normalized = normalizeKey(columnName);
-    return normalized.includes('hora') || normalized.includes('inicio') || normalized.includes('fin');
-  };
-
-  const formatTime = (time: any) => {
-    if (time == null) return '';
-    if (typeof time === 'number') {
-      const totalMinutes = Math.round(time * 24 * 60);
-      const hours = Math.floor(totalMinutes / 60);
-      const mins = totalMinutes % 60;
-      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-    }
-    if (typeof time === 'string') {
-      const normalized = time.trim();
-      if (/^\d{1,2}:\d{2}$/.test(normalized)) return normalized;
-      const numeric = Number(normalized);
-      if (!Number.isNaN(numeric)) {
-        const totalMinutes = Math.round(numeric * 24 * 60);
-        const hours = Math.floor(totalMinutes / 60);
-        const mins = totalMinutes % 60;
-        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-      }
-      return normalized;
-    }
-    return String(time);
-  };
-
-  const getPreviewValue = (col: string, value: any) => {
-    if (value == null) return '';
-    return isTimeColumn(col) ? formatTime(value) : String(value);
-  };
-
-  const manejarImportacion = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setLoading(true);
-    setErrorMessage(null);
-    const reader = new FileReader();
-
-    reader.onload = async (evt) => {
-      try {
-        const arrayBuffer = evt.target?.result;
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const datosRaw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-
-        const columns = Array.from(
-          new Set(datosRaw.flatMap((row: any) => Object.keys(row)))
-        );
-        const normalizedColumns = columns.map(normalizeKey);
-        const missing = requiredColumns.filter(
-          (required) =>
-            !normalizedColumns.some((col) => col.includes(required))
-        );
-
-        setRawData(datosRaw as any[]);
-        setPreviewRows(datosRaw as any[]);
-        setPreviewColumns(columns);
-        setMissingColumns(missing);
-        setShowPreview(true);
-
-        if (missing.length > 0) {
-          setErrorMessage(
-            `Faltan columnas obligatorias: ${missing.join(', ')}. Revisa tu archivo Excel.`
-          );
-        } else {
-          setErrorMessage(null);
-        }
-      } catch (err) {
-        setErrorMessage('Error al leer el archivo. Asegúrate de cargar un Excel válido.');
-        setShowPreview(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  const importarDatos = async () => {
-    if (!rawData.length) return;
-    setLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const res = await fetch('/api/horarios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rawData),
-      });
-
-      if (res.ok) {
-        alert('¡Importado con éxito!');
-        setShowPreview(false);
-        setRawData([]);
-        setPreviewRows([]);
-        setPreviewColumns([]);
-      } else {
-        const err = await res.json();
-        setErrorMessage('Error al importar: ' + (err.error || 'Respuesta inválida del servidor'));
-      }
-    } catch (err) {
-      setErrorMessage('Error de red al importar los datos.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const modules = [
+    {
+      href: '/docentes',
+      icon: '👨‍🏫',
+      title: 'Docentes',
+      description: 'Gestión de profesores, especialidades y datos personales.',
+      color: '#3b82f6',
+      count: stats.docentes,
+    },
+    {
+      href: '/cursos',
+      icon: '📚',
+      title: 'Cursos',
+      description: 'Administración de asignaturas, créditos y mallas curriculares.',
+      color: '#8b5cf6',
+      count: stats.cursos,
+    },
+    {
+      href: '/aulas',
+      icon: '🏫',
+      title: 'Aulas',
+      description: 'Control de espacios físicos, laboratorios y capacidades.',
+      color: '#f59e0b',
+      count: stats.aulas,
+    },
+  ];
 
   return (
-    <div style={{ padding: '40px', backgroundColor: '#f4f7f6', minHeight: '100vh', fontFamily: 'sans-serif' }}>
-      
-      {/* PANEL DE CARGA */}
-      <div style={{ 
-        backgroundColor: 'white', padding: '30px', borderRadius: '15px', 
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)', marginBottom: '30px' 
-      }}>
-        <h1 style={{ color: '#2c3e50', marginBottom: '10px' }}>Panel de Administración de Horarios</h1>
-        <p style={{ color: '#7f8c8d', marginBottom: '20px' }}>Sube tu archivo Excel para actualizar la base de datos.</p>
-        
-        <label style={{
-          display: 'inline-block', padding: '15px 30px', backgroundColor: '#007bff',
-          color: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
-          transition: '0.3s'
-        }}>
-          {loading ? "⌛ Procesando..." : "📁 Seleccionar Excel e Importar"}
-          <input type="file" onChange={manejarImportacion} hidden accept=".xlsx,.xls" />
-        </label>
+    <div className="container">
+      <header className="page-header">
+        <h1>Organizador de Horarios</h1>
+        <p className="subtitle">Gestión Académica Centralizada e Inteligente</p>
+      </header>
+
+      {/* Dashboard Stats Summary */}
+      <div className="dashboard-stats">
+        <div className="stat-card">
+          <span className="stat-icon">👥</span>
+          <div>
+            <p className="stat-number">{stats.docentes}</p>
+            <p className="stat-label">Docentes</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <span className="stat-icon">📖</span>
+          <div>
+            <p className="stat-number">{stats.cursos}</p>
+            <p className="stat-label">Cursos</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <span className="stat-icon">🏗️</span>
+          <div>
+            <p className="stat-number">{stats.aulas}</p>
+            <p className="stat-label">Aulas</p>
+          </div>
+        </div>
       </div>
 
-      {showPreview ? (
-        <div style={{ backgroundColor: 'white', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #e5e7eb', color: '#374151' }}>
-            <div>
-              <strong>{previewRows.length}</strong> registros • <strong>{previewColumns.length}</strong> columnas
-            </div>
-            <div style={{ color: missingColumns.length ? '#b91c1c' : '#16a34a', fontWeight: 600 }}>
-              {missingColumns.length > 0 ? `Faltan columnas: ${missingColumns.join(', ')}` : 'Columnas obligatorias presentes'}
-            </div>
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#1f2937' }}>
-            <thead style={{ backgroundColor: '#2c3e50', color: 'white' }}>
-              <tr>
-                {(showPreview && previewColumns.length > 0 ? previewColumns : [
-                  'CURSO',
-                  'DÍA',
-                  'AULA',
-                  'INICIO',
-                  'FIN',
-                  'DOCENTE',
-                ]).map((col) => (
-                  <th key={col} style={{ padding: '15px', textAlign: 'left', fontWeight: 600 }}>{col}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {previewRows.length > 0 ? (
-                previewRows.map((row, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #eee', backgroundColor: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                    {previewColumns.map((col) => (
-                      <td key={col} style={{ padding: '15px', color: '#111827' }}>
-                        {getPreviewValue(col, row[col])}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : null}
-            </tbody>
-          </table>
+      {/* Módulos de Configuración Manual */}
+      <section className="section">
+        <h2>Registro Manual</h2>
+        <p className="section-subtitle">Ingresa los datos base paso a paso para la generación de horarios</p>
+
+        <div className="modules-grid">
+          {modules.map((mod) => (
+            <Link
+              href={mod.href}
+              key={mod.href}
+              className="module-card"
+              style={{ '--accent': mod.color } as React.CSSProperties}
+            >
+              <div className="module-icon">{mod.icon}</div>
+              <h3 className="module-title">{mod.title}</h3>
+              <p className="module-desc">{mod.description}</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span className="module-action">Configurar →</span>
+                <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{mod.count} registros</span>
+              </div>
+            </Link>
+          ))}
         </div>
-      ) : (
-        <div style={{ backgroundColor: '#ffffff', borderRadius: '15px', padding: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', color: '#7f8c8d' }}>
-          Selecciona un archivo Excel para ver su estructura exacta aquí.
-        </div>
-      )}
-      {showPreview && (
-        <div style={{ marginTop: '15px' }}>
-          <button
-            onClick={importarDatos}
-            disabled={loading || missingColumns.length > 0}
-            style={{
-              marginRight: '12px',
-              padding: '12px 20px',
-              backgroundColor: loading || missingColumns.length > 0 ? '#94a3b8' : '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: loading || missingColumns.length > 0 ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {loading ? 'Importando...' : 'Importar datos al servidor'}
-          </button>
-          <button
-            onClick={() => setShowPreview(false)}
-            disabled={loading}
-            style={{
-              padding: '12px 20px',
-              backgroundColor: '#6c757d',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
-          >
-            Cancelar vista previa
-          </button>
-        </div>
-      )}
-      {errorMessage && (
-        <p style={{ marginTop: '15px', color: '#c0392b' }}>{errorMessage}</p>
-      )}
+      </section>
+
+      {/* Importación Masiva (Excel) */}
+      <ExcelImport />
+
+      {/* Próximos pasos */}
+      <div className="info-card">
+        <h3>🚀 Próximos Pasos</h3>
+        <p>Una vez completado el registro de datos maestros (sea manual o por carga masiva), podrás proceder a:</p>
+        <ul>
+          <li>
+            <strong>Generar Horarios</strong> — Algoritmo de distribución automática
+          </li>
+          <li>
+            <strong>Gestionar Conflictos</strong> — Detección de cruces de docentes y aulas
+          </li>
+          <li>
+            <strong>Exportar Reportes</strong> — PDF y Excel para facultades
+          </li>
+        </ul>
+      </div>
     </div>
   );
-} 
+}
