@@ -625,18 +625,33 @@ export default function MainMenu({ user, onLogout }: MainMenuProps) {
         </div>
       </header>
 
-      <nav className={styles.tabBar}>
-        {(['dashboard', 'courses', 'teachers', 'classrooms', 'schedule'] as AppTab[]).map((tab) => (
-          <button
-            type="button"
-            key={tab}
-            className={`${styles.tabButton} ${activeTab === tab ? styles.tabButtonActive : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab === 'dashboard' ? 'Panel' : tab === 'courses' ? 'Materias' : tab === 'teachers' ? 'Docentes' : tab === 'classrooms' ? 'Aulas' : 'Horario'}
+      {activeTab !== 'dashboard' && (
+        <div className={styles.wizardProgressContainer}>
+          <div className={styles.wizardBar}>
+            {['classrooms', 'teachers', 'courses', 'schedule'].map((step, idx) => {
+              const labels = ['1. Aulas', '2. Docentes', '3. Materias', '4. Horario'];
+              const isActive = activeTab === step;
+              const stepIndex = ['classrooms', 'teachers', 'courses', 'schedule'].indexOf(activeTab);
+              const isCompleted = idx < stepIndex;
+              return (
+                <div key={step} style={{ display: 'flex', alignItems: 'center', flex: idx === 3 ? '0 0 auto' : '1' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(step as AppTab)}
+                    className={`${styles.wizardStepBtn} ${isActive ? styles.wizardActive : ''} ${isCompleted ? styles.wizardCompleted : ''}`}
+                  >
+                    {labels[idx]}
+                  </button>
+                  {idx < 3 && <div className={`${styles.wizardLine} ${isCompleted ? styles.wizardLineActive : ''}`} />}
+                </div>
+              );
+            })}
+          </div>
+          <button type="button" className={styles.secondaryButton} onClick={() => setActiveTab('dashboard')}>
+            ✖ Volver al Panel
           </button>
-        ))}
-      </nav>
+        </div>
+      )}
 
       <main className={styles.mainContent}>
         {activeTab === 'dashboard' && (
@@ -647,10 +662,10 @@ export default function MainMenu({ user, onLogout }: MainMenuProps) {
                   <h3>Importar Excel</h3>
                   <p>Sube tus datos masivamente.</p>
                </button>
-               <button className={styles.bigHeroButton} onClick={() => setActiveTab('courses')}>
+               <button className={styles.bigHeroButton} onClick={() => setActiveTab('classrooms')}>
                   <div className={styles.heroIcon}>✍️</div>
                   <h3>Agregar Manualmente</h3>
-                  <p>Usa formularios de texto.</p>
+                  <p>Aulas → Materias → Docentes</p>
                </button>
                <button className={styles.bigHeroButton} onClick={() => setActiveTab('schedule')}>
                   <div className={styles.heroIcon}>📅</div>
@@ -744,6 +759,13 @@ export default function MainMenu({ user, onLogout }: MainMenuProps) {
                 </table>
               </div>
             )}
+            {courses.length > 0 && (
+              <div className={styles.wizardFooter}>
+                <button type="button" className={styles.primaryButton} onClick={() => setActiveTab('schedule')}>
+                  Siguiente: Generar Horario ➔
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -792,6 +814,13 @@ export default function MainMenu({ user, onLogout }: MainMenuProps) {
                     </article>
                   );
                 })}
+              </div>
+            )}
+            {teachers.length > 0 && (
+              <div className={styles.wizardFooter}>
+                <button type="button" className={styles.primaryButton} onClick={() => setActiveTab('courses')}>
+                  Siguiente: Materias ➔
+                </button>
               </div>
             )}
           </section>
@@ -850,6 +879,13 @@ export default function MainMenu({ user, onLogout }: MainMenuProps) {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {classrooms.length > 0 && (
+              <div className={styles.wizardFooter}>
+                <button type="button" className={styles.primaryButton} onClick={() => setActiveTab('teachers')}>
+                  Siguiente: Docentes ➔
+                </button>
               </div>
             )}
           </section>

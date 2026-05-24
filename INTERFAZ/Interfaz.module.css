@@ -589,25 +589,82 @@
   color: white;
 }
 
-.tabBar {
+.wizardProgressContainer {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   margin-bottom: 24px;
+  background: white;
+  padding: 16px 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  flex-wrap: wrap;
 }
 
-.tabButton {
-  padding: 12px 18px;
-  border-radius: 14px;
-  background: #f8fafc;
-  color: #52524f;
+.wizardBar {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 300px;
+}
+
+.wizardStepBtn {
+  background: transparent;
+  border: 2px solid #e5e7eb;
+  padding: 10px 18px;
+  border-radius: 99px;
+  color: #64748b;
   font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
-.tabButtonActive {
+.wizardStepBtn:hover {
+  border-color: #059669;
+  color: #059669;
+}
+
+.wizardActive {
   background: #065f46;
+  border-color: #065f46;
   color: white;
 }
+
+.wizardActive:hover {
+  color: white;
+}
+
+.wizardCompleted {
+  background: #ecfdf5;
+  border-color: #059669;
+  color: #059669;
+}
+
+.wizardLine {
+  height: 4px;
+  background: #e5e7eb;
+  flex: 1;
+  margin: 0 8px;
+  border-radius: 2px;
+  transition: background 0.3s ease;
+}
+
+.wizardLineActive {
+  background: #059669;
+}
+
+.wizardFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(15, 23, 42, 0.05);
+}
+
 
 .sectionPanel {
   background: white;
