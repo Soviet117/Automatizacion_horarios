@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Building, GraduationCap, Layers, BookOpen, Clock, Building2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Pencil, Building, GraduationCap, Layers, BookOpen, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function CatalogosPage() {
@@ -13,6 +13,7 @@ export default function CatalogosPage() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<any>({});
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchMasterData = async () => {
@@ -42,14 +43,27 @@ export default function CatalogosPage() {
     { id: 'sesiones', label: 'Tipos de Sesión', icon: Clock, color: '#ef4444', bg: '#fef2f2' },
   ];
 
-  const handleOpenModal = () => {
-    setFormData({});
+  const handleOpenModal = (item: any = null) => {
+    if (item && !item.nativeEvent) {
+      setFormData(item);
+      let id = '';
+      if (activeTab === 'facultades') id = item.id_facultad;
+      else if (activeTab === 'carreras') id = item.id_carrera;
+      else if (activeTab === 'ciclos') id = item.id_ciclo;
+      else if (activeTab === 'planes') id = item.id_plan;
+      else if (activeTab === 'sesiones') id = item.id_tipo_sesion;
+      setEditingId(id);
+    } else {
+      setFormData({});
+      setEditingId(null);
+    }
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setFormData({});
+    setEditingId(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,8 +86,11 @@ export default function CatalogosPage() {
     }
 
     try {
+      const method = editingId ? 'PUT' : 'POST';
+      const payload = editingId ? { id: editingId, ...formData } : { ...formData };
+
       const res = await fetch(endpoint, {
-        method: 'POST',
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -121,30 +138,40 @@ export default function CatalogosPage() {
 
     let items = [];
     let columns = [];
+    let idKey = '';
 
     if (activeTab === 'facultades') {
       items = masterData.facultades || [];
-      columns = [{ key: 'id_facultad', label: 'ID' }, { key: 'nom_facultad', label: 'Nombre de la Facultad' }];
+      columns = [{ key: 'nom_facultad', label: 'Nombre de la Facultad' }];
+      idKey = 'id_facultad';
     } else if (activeTab === 'carreras') {
-      items = masterData.carreras || [];
+      items = (masterData.carreras || []).map((c: any) => ({
+        ...c,
+        nom_facultad: masterData.facultades?.find((f: any) => f.id_facultad === c.id_facultad)?.nom_facultad || c.id_facultad
+      }));
       columns = [
-        { key: 'id_carrera', label: 'ID' },
         { key: 'nom_carrera', label: 'Nombre de la Carrera' },
-        { key: 'id_facultad', label: 'ID Facultad' }
+        { key: 'nom_facultad', label: 'Facultad' }
       ];
+      idKey = 'id_carrera';
     } else if (activeTab === 'ciclos') {
       items = masterData.ciclos || [];
-      columns = [{ key: 'id_ciclo', label: 'Ciclo' }, { key: 'nom_ciclo', label: 'Nombre' }];
+      columns = [{ key: 'nom_ciclo', label: 'Nombre del Ciclo' }];
+      idKey = 'id_ciclo';
     } else if (activeTab === 'planes') {
-      items = masterData.planes || [];
+      items = (masterData.planes || []).map((p: any) => ({
+        ...p,
+        nom_carrera: masterData.carreras?.find((c: any) => c.id_carrera === p.id_carrera)?.nom_carrera || p.id_carrera
+      }));
       columns = [
-        { key: 'id_plan', label: 'ID Plan' },
         { key: 'nom_plan', label: 'Nombre del Plan' },
-        { key: 'id_carrera', label: 'ID Carrera' }
+        { key: 'nom_carrera', label: 'Carrera' }
       ];
+      idKey = 'id_plan';
     } else if (activeTab === 'sesiones') {
       items = masterData.tipoSesiones || [];
-      columns = [{ key: 'id_tipo_sesion', label: 'ID' }, { key: 'nom_tipo_sesion', label: 'Nombre del Tipo' }];
+      columns = [{ key: 'nom_tipo_sesion', label: 'Nombre del Tipo' }];
+      idKey = 'id_tipo_sesion';
     }
 
     if (items.length === 0) {
@@ -167,20 +194,24 @@ export default function CatalogosPage() {
                   {col.label}
                 </th>
               ))}
-              <th style={{ padding: '16px 24px', width: 80 }}></th>
+              <th style={{ padding: '16px 24px', width: 120 }}></th>
             </tr>
           </thead>
           <tbody>
             {items.map((item: any, i: number) => {
-              const id = item[columns[0].key];
+              const id = item[idKey];
               return (
                 <tr key={id} style={{ borderBottom: i === items.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
                   {columns.map(col => (
-                    <td key={col.key} style={{ padding: '16px 24px', fontSize: 14, color: '#0f172a', fontWeight: col.key.includes('id') ? 600 : 400 }}>
+                    <td key={col.key} style={{ padding: '16px 24px', fontSize: 14, color: '#0f172a' }}>
                       {item[col.key]}
                     </td>
                   ))}
-                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                  <td style={{ padding: '16px 24px', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button onClick={() => handleOpenModal(item)} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f8fafc', color: '#3b82f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; }} onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; }}>
+                      <Pencil style={{ width: 14, height: 14 }} />
+                    </button>
                     <button onClick={() => handleDelete(id)} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f8fafc', color: '#ef4444', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
                       onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; }} onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; }}>
                       <Trash2 style={{ width: 14, height: 14 }} />
@@ -200,10 +231,6 @@ export default function CatalogosPage() {
       return (
         <>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>ID Facultad</label>
-            <input required type="text" placeholder="Ej: F01" value={formData.id_facultad || ''} onChange={e => setFormData({ ...formData, id_facultad: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-          </div>
-          <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre de la Facultad</label>
             <input required type="text" placeholder="Ej: Facultad de Ingeniería" value={formData.nom_facultad || ''} onChange={e => setFormData({ ...formData, nom_facultad: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
           </div>
@@ -214,10 +241,6 @@ export default function CatalogosPage() {
     if (activeTab === 'carreras') {
       return (
         <>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>ID Carrera</label>
-            <input required type="text" placeholder="Ej: C01" value={formData.id_carrera || ''} onChange={e => setFormData({ ...formData, id_carrera: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-          </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre de la Carrera</label>
             <input required type="text" placeholder="Ej: Ingeniería de Software" value={formData.nom_carrera || ''} onChange={e => setFormData({ ...formData, nom_carrera: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
@@ -237,10 +260,6 @@ export default function CatalogosPage() {
       return (
         <>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Número de Ciclo (ID)</label>
-            <input required type="number" placeholder="Ej: 1" value={formData.id_ciclo || ''} onChange={e => setFormData({ ...formData, id_ciclo: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-          </div>
-          <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre (Descripción)</label>
             <input required type="text" placeholder="Ej: Primer Ciclo" value={formData.nom_ciclo || ''} onChange={e => setFormData({ ...formData, nom_ciclo: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
           </div>
@@ -251,10 +270,6 @@ export default function CatalogosPage() {
     if (activeTab === 'planes') {
       return (
         <>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>ID Plan de Estudio</label>
-            <input required type="text" placeholder="Ej: PLAN_2026" value={formData.id_plan || ''} onChange={e => setFormData({ ...formData, id_plan: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-          </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre del Plan</label>
             <input required type="text" placeholder="Ej: Malla Curricular 2026" value={formData.nom_plan || ''} onChange={e => setFormData({ ...formData, nom_plan: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
@@ -273,10 +288,6 @@ export default function CatalogosPage() {
     if (activeTab === 'sesiones') {
       return (
         <>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>ID Tipo de Sesión</label>
-            <input required type="text" placeholder="Ej: lab" value={formData.id_tipo_sesion || ''} onChange={e => setFormData({ ...formData, id_tipo_sesion: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-          </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre del Tipo</label>
             <input required type="text" placeholder="Ej: Laboratorio" value={formData.nom_tipo_sesion || ''} onChange={e => setFormData({ ...formData, nom_tipo_sesion: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
@@ -364,7 +375,7 @@ export default function CatalogosPage() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div style={{ background: 'white', width: '100%', maxWidth: 440, borderRadius: 24, padding: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
             <h2 style={{ margin: '0 0 24px', fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
-              Nuevo Registro: {tabs.find(t => t.id === activeTab)?.label}
+              {editingId ? 'Editar Registro: ' : 'Nuevo Registro: '} {tabs.find(t => t.id === activeTab)?.label}
             </h2>
             <form onSubmit={handleSubmit}>
 

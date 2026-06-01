@@ -8,13 +8,13 @@ datasource db {
 }
 
 model facultad {
-  id_facultad  String    @id(map: "facultad_pk") @db.VarChar
+  id_facultad  String    @id(map: "facultad_pk") @default(uuid()) @db.VarChar
   nom_facultad String    @db.VarChar
   carrera      carrera[]
 }
 
 model carrera {
-  id_carrera   String         @id(map: "carrera_pk") @db.VarChar
+  id_carrera   String         @id(map: "carrera_pk") @default(uuid()) @db.VarChar
   nom_carrera  String         @db.VarChar
   id_facultad  String         @db.VarChar
   facultad     facultad       @relation(fields: [id_facultad], references: [id_facultad], onDelete: Cascade, onUpdate: Cascade, map: "carrera_facultad_fk")
@@ -23,7 +23,7 @@ model carrera {
 }
 
 model plan_estudio {
-  id_plan    String  @id(map: "plan_estudio_pk") @db.VarChar
+  id_plan    String  @id(map: "plan_estudio_pk") @default(uuid()) @db.VarChar
   nom_plan   String  @db.VarChar
   id_carrera String  @db.VarChar
   carrera    carrera @relation(fields: [id_carrera], references: [id_carrera], onDelete: Cascade, onUpdate: Cascade, map: "plan_estudio_carrera_fk")
@@ -31,13 +31,13 @@ model plan_estudio {
 }
 
 model ciclo {
-  id_ciclo  Int     @id(map: "ciclo_pk")
+  id_ciclo  Int     @id(map: "ciclo_pk") @default(autoincrement())
   nom_ciclo String  @db.VarChar
   curso     curso[]
 }
 
 model tipo_sesion {
-  id_tipo_sesion  String  @id(map: "tipo_sesion_pk") @db.VarChar
+  id_tipo_sesion  String  @id(map: "tipo_sesion_pk") @default(uuid()) @db.VarChar
   nom_tipo_sesion String  @db.VarChar
   curso           curso[]
 }

@@ -19,7 +19,6 @@ export async function POST(req: Request, props: { params: Promise<{ tipo: string
       case 'ciclo':
         result = await prisma.ciclo.create({
           data: {
-            id_ciclo: parseInt(data.id_ciclo),
             nom_ciclo: data.nom_ciclo
           }
         });
@@ -38,7 +37,58 @@ export async function POST(req: Request, props: { params: Promise<{ tipo: string
   } catch (error: any) {
     console.error(`Error al crear en catálogo:`, error);
     return NextResponse.json(
-      { error: 'Error al crear el registro. Es posible que el ID ya exista.' },
+      { error: 'Error al crear el registro.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: Request, props: { params: Promise<{ tipo: string }> }) {
+  try {
+    const data = await req.json();
+    const params = await props.params;
+    const tipo = params.tipo;
+
+    let result;
+    const { id, ...updateData } = data;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID requerido para actualizar' }, { status: 400 });
+    }
+
+    switch (tipo) {
+      case 'facultad':
+        delete updateData.id_facultad;
+        result = await prisma.facultad.update({ where: { id_facultad: id }, data: updateData });
+        break;
+      case 'carrera':
+        delete updateData.id_carrera;
+        result = await prisma.carrera.update({ where: { id_carrera: id }, data: updateData });
+        break;
+      case 'ciclo':
+        delete updateData.id_ciclo;
+        result = await prisma.ciclo.update({
+          where: { id_ciclo: parseInt(id) },
+          data: { nom_ciclo: updateData.nom_ciclo }
+        });
+        break;
+      case 'plan-estudio':
+        delete updateData.id_plan;
+        result = await prisma.plan_estudio.update({ where: { id_plan: id }, data: updateData });
+        break;
+      case 'tipo-sesion':
+        delete updateData.id_tipo_sesion;
+        result = await prisma.tipo_sesion.update({ where: { id_tipo_sesion: id }, data: updateData });
+        break;
+      default:
+        return NextResponse.json({ error: 'Tipo de catálogo no válido' }, { status: 400 });
+    }
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    console.error(`Error al actualizar en catálogo:`, error);
+    return NextResponse.json(
+      { error: 'Error al actualizar el registro.' },
       { status: 500 }
     );
   }
