@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = [
     { name: 'Inicio', path: '/dashboard', icon: BarChart3 },
-    { name: 'Catálogo', path: '/dashboard/catalogo', icon: BookOpen },
+    { name: 'Gestión Curricular', path: '/dashboard/gestion-curricular', icon: BookOpen },
     { name: 'Recursos', path: '/dashboard/recursos', icon: Users },
     { name: 'Infraestructura', path: '/dashboard/infraestructura', icon: Building2 },
     { name: 'Escenarios', path: '/dashboard/escenarios', icon: Layers },

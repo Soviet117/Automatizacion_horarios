@@ -1,49 +1,19 @@
-/*
-  Warnings:
+-- CreateTable
+CREATE TABLE "facultad" (
+    "id_facultad" VARCHAR NOT NULL,
+    "nom_facultad" VARCHAR NOT NULL,
 
-  - You are about to drop the `horarios` table. If the table is not empty, all the data it contains will be lost.
+    CONSTRAINT "facultad_pk" PRIMARY KEY ("id_facultad")
+);
 
-*/
--- DropForeignKey
-ALTER TABLE "aula" DROP CONSTRAINT "aula_tipo_aula_fk";
+-- CreateTable
+CREATE TABLE "carrera" (
+    "id_carrera" VARCHAR NOT NULL,
+    "nom_carrera" VARCHAR NOT NULL,
+    "id_facultad" VARCHAR NOT NULL,
 
--- DropForeignKey
-ALTER TABLE "carrera" DROP CONSTRAINT "carrera_facultad_fk";
-
--- DropForeignKey
-ALTER TABLE "curso" DROP CONSTRAINT "curso_carrera_fk";
-
--- DropForeignKey
-ALTER TABLE "curso" DROP CONSTRAINT "curso_ciclo_fk";
-
--- DropForeignKey
-ALTER TABLE "horarios" DROP CONSTRAINT "horarios_aula_fk";
-
--- DropForeignKey
-ALTER TABLE "horarios" DROP CONSTRAINT "horarios_curso_fk";
-
--- DropForeignKey
-ALTER TABLE "horarios" DROP CONSTRAINT "horarios_docente_fk";
-
--- AlterTable
-ALTER TABLE "aula" ADD COLUMN     "id_usuario" VARCHAR;
-
--- AlterTable
-ALTER TABLE "ciclo" ALTER COLUMN "id_ciclo" DROP DEFAULT;
-DROP SEQUENCE "ciclo_id_ciclo_seq";
-
--- AlterTable
-ALTER TABLE "curso" ADD COLUMN     "alumnos" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN     "horas_practicas" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN     "horas_teoricas" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN     "id_plan" VARCHAR,
-ADD COLUMN     "id_usuario" VARCHAR;
-
--- AlterTable
-ALTER TABLE "docente" ADD COLUMN     "id_usuario" VARCHAR;
-
--- DropTable
-DROP TABLE "horarios";
+    CONSTRAINT "carrera_pk" PRIMARY KEY ("id_carrera")
+);
 
 -- CreateTable
 CREATE TABLE "plan_estudio" (
@@ -55,11 +25,49 @@ CREATE TABLE "plan_estudio" (
 );
 
 -- CreateTable
+CREATE TABLE "ciclo" (
+    "id_ciclo" INTEGER NOT NULL,
+    "nom_ciclo" VARCHAR NOT NULL,
+
+    CONSTRAINT "ciclo_pk" PRIMARY KEY ("id_ciclo")
+);
+
+-- CreateTable
 CREATE TABLE "tipo_sesion" (
     "id_tipo_sesion" VARCHAR NOT NULL,
     "nom_tipo_sesion" VARCHAR NOT NULL,
 
     CONSTRAINT "tipo_sesion_pk" PRIMARY KEY ("id_tipo_sesion")
+);
+
+-- CreateTable
+CREATE TABLE "curso" (
+    "id_curso" VARCHAR NOT NULL,
+    "creditos" INTEGER NOT NULL,
+    "nom_curso" VARCHAR NOT NULL,
+    "id_carrera" VARCHAR NOT NULL,
+    "modalidad" VARCHAR NOT NULL,
+    "tipo_curso" VARCHAR NOT NULL,
+    "id_ciclo" INTEGER NOT NULL,
+    "horas_teoricas" INTEGER NOT NULL DEFAULT 0,
+    "horas_practicas" INTEGER NOT NULL DEFAULT 0,
+    "alumnos" INTEGER NOT NULL DEFAULT 0,
+    "id_plan" VARCHAR,
+    "id_usuario" VARCHAR,
+
+    CONSTRAINT "curso_pk" PRIMARY KEY ("id_curso")
+);
+
+-- CreateTable
+CREATE TABLE "docente" (
+    "id_docente" VARCHAR NOT NULL,
+    "dni_docente" VARCHAR NOT NULL,
+    "nom_docente" VARCHAR NOT NULL,
+    "ape_docente" VARCHAR NOT NULL,
+    "nom_especialidad" VARCHAR NOT NULL,
+    "id_usuario" VARCHAR,
+
+    CONSTRAINT "docente_pk" PRIMARY KEY ("id_docente")
 );
 
 -- CreateTable
@@ -70,6 +78,25 @@ CREATE TABLE "disponibilidad_docente" (
     "id_bloque" INTEGER NOT NULL,
 
     CONSTRAINT "disponibilidad_docente_pk" PRIMARY KEY ("id_disponibilidad")
+);
+
+-- CreateTable
+CREATE TABLE "aula" (
+    "id_aula" VARCHAR NOT NULL,
+    "nom_aula" VARCHAR NOT NULL,
+    "id_tipo_aula" VARCHAR NOT NULL,
+    "capacidad" INTEGER NOT NULL,
+    "id_usuario" VARCHAR,
+
+    CONSTRAINT "aula_pk" PRIMARY KEY ("id_aula")
+);
+
+-- CreateTable
+CREATE TABLE "tipo_aula" (
+    "id_tipo_aula" VARCHAR NOT NULL,
+    "nom_tipo_aula" VARCHAR NOT NULL,
+
+    CONSTRAINT "tipo_aula_pk" PRIMARY KEY ("id_tipo_aula")
 );
 
 -- CreateTable
