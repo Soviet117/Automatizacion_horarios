@@ -107,7 +107,10 @@ export async function GET() {
       });
     }
 
-    const [carreras, ciclos, tiposAula, periodos, planes, tipoSesiones] = await Promise.all([
+    const [facultades, carreras, ciclos, tiposAula, periodos, planes, tipoSesiones] = await Promise.all([
+      prisma.facultad.findMany({
+        orderBy: { nom_facultad: 'asc' },
+      }),
       prisma.carrera.findMany({
         orderBy: { nom_carrera: 'asc' },
       }),
@@ -129,6 +132,7 @@ export async function GET() {
     ])
 
     return NextResponse.json({
+      facultades,
       carreras,
       ciclos,
       tiposAula,

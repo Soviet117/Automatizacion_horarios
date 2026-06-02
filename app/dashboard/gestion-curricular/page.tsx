@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, BookOpen, Clock, Users, Layers, Edit2, Trash2, GraduationCap, Building2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, Search, BookOpen, Clock, Users, Layers, Edit2, Trash2, GraduationCap, Building2, Settings } from 'lucide-react';
 import MateriaModal from '../../../components/MateriaModal';
 
 interface Curso {
@@ -23,6 +24,7 @@ interface Curso {
 }
 
 export default function GestionCurricularPage() {
+  const router = useRouter();
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [filteredCursos, setFilteredCursos] = useState<Curso[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,16 +122,28 @@ export default function GestionCurricularPage() {
             Administra las materias, su carga académica y la cohorte de alumnos
           </p>
         </div>
-        <button onClick={() => handleOpenModal()} style={{
-          display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 14,
-          background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: 'white',
-          fontSize: 14, fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
-          transition: 'transform 0.2s, box-shadow 0.2s'
-        }}
-        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(16,185,129,0.4)'; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.3)'; }}>
-          <Plus style={{ width: 18, height: 18 }} /> Nueva Materia
-        </button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button onClick={() => router.push('/dashboard/gestion-curricular/catalogos')} style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 14,
+            background: 'white', border: '1.5px solid #e2e8f0', color: '#475569',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.color = '#0f172a'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569'; }}>
+            <Settings style={{ width: 18, height: 18 }} /> Catálogos
+          </button>
+          <button onClick={() => handleOpenModal()} style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 14,
+            background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: 'white',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
+            transition: 'transform 0.2s, box-shadow 0.2s'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(16,185,129,0.4)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.3)'; }}>
+            <Plus style={{ width: 18, height: 18 }} /> Nueva Materia
+          </button>
+        </div>
       </div>
 
       {/* Toolbar */}
