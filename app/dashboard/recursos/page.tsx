@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { sampleTeachers, sampleClassrooms, sampleCourses } from '../../../lib/data';
+import { sampleClassrooms, sampleCourses } from '../../../lib/data';
+import { getDocentes, createDocente, updateDocente, deleteDocente, getAulas, createAula, updateAula, deleteAula } from './actions';
 import { Teacher, Classroom, Course } from '../../../lib/types';
 import { Users, Building2, Plus, Search, Edit2, Trash2, X, Clock, CheckCircle2, BrainCircuit } from 'lucide-react';
 
@@ -27,10 +28,21 @@ export default function RecursosPage() {
   const [modal, setModal] = useState<ModalType>({ open: false, type: 'teacher', editId: null });
   const [tempAvail, setTempAvail] = useState<Record<number, number[]>>({});
   const [tempComp, setTempComp] = useState<string[]>([]);
+  const [tempDni, setTempDni] = useState('');
+  const [tempNombre, setTempNombre] = useState('');
+  const [tempApellido, setTempApellido] = useState('');
+  const [tempEspecialidad, setTempEspecialidad] = useState('');
+  const [tempEmail, setTempEmail] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [tempAulaNombre, setTempAulaNombre] = useState('');
+  const [tempAulaCapacidad, setTempAulaCapacidad] = useState(30);
+  const [tempAulaTipo, setTempAulaTipo] = useState('classroom');
+  const [aulaErrorMsg, setAulaErrorMsg] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setTeachers(sampleTeachers());
-    setClassrooms(sampleClassrooms());
+    getDocentes().then(setTeachers);
+    getAulas().then(setClassrooms);
     setCourses(sampleCourses());
   }, []);
 
@@ -39,9 +51,102 @@ export default function RecursosPage() {
 
   const openTeacherModal = (editId: string | null = null) => {
     const t = editId ? teachers.find(x => x.id === editId) : null;
+    setTempDni(t?.dni ?? '');
+    setTempNombre(t?.nombre ?? '');
+    setTempApellido(t?.apellido ?? '');
+    setTempEspecialidad(t?.especialidad ?? '');
+    setErrorMsg('');
+    setTempEmail(t?.email ?? '');
     setTempAvail(t?.availability ?? {});
     setTempComp(t?.competencies ?? []);
     setModal({ open: true, type: 'teacher', editId });
+  };
+
+  const handleSaveTeacher = async () => {
+    if (!tempDni || !tempNombre || !tempApellido || !tempEspecialidad) {
+      setErrorMsg('Por favor llena DNI, Nombre, Apellido y Especialidad.');
+      return;
+    }
+    setErrorMsg('');
+    setIsSaving(true);
+    try {
+      const payload = {
+        dni: tempDni,
+        nombre: tempNombre,
+        apellido: tempApellido,
+        especialidad: tempEspecialidad,
+        email: tempEmail,
+        competencies: tempComp,
+        availability: tempAvail
+      };
+      
+      if (modal.editId) {
+        await updateDocente(modal.editId, payload);
+      } else {
+        await createDocente(payload);
+      }
+      
+      const updated = await getDocentes();
+      setTeachers(updated);
+      setModal({ ...modal, open: false });
+    } catch (e: any) {
+      setErrorMsg(e.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteTeacher = async (id: string) => {
+    if (!window.confirm('¿Seguro que deseas eliminar este docente?')) return;
+    await deleteDocente(id);
+    const updated = await getDocentes();
+    setTeachers(updated);
+  };
+
+  const openAulaModal = (editId: string | null = null) => {
+    const a = editId ? classrooms.find(x => x.id === editId) : null;
+    setTempAulaNombre(a?.name ?? '');
+    setTempAulaCapacidad(a?.capacity ?? 30);
+    setTempAulaTipo(a?.type ?? 'classroom');
+    setAulaErrorMsg('');
+    setModal({ open: true, type: 'classroom', editId });
+  };
+
+  const handleSaveAula = async () => {
+    if (!tempAulaNombre || !tempAulaCapacidad || !tempAulaTipo) {
+      setAulaErrorMsg('Todos los campos son obligatorios.');
+      return;
+    }
+    setAulaErrorMsg('');
+    setIsSaving(true);
+    try {
+      const payload = {
+        name: tempAulaNombre,
+        capacity: tempAulaCapacidad,
+        type: tempAulaTipo
+      };
+      
+      if (modal.editId) {
+        await updateAula(modal.editId, payload);
+      } else {
+        await createAula(payload);
+      }
+      
+      const updated = await getAulas();
+      setClassrooms(updated);
+      setModal({ ...modal, open: false });
+    } catch (e: any) {
+      setAulaErrorMsg(e.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteAula = async (id: string) => {
+    if (!window.confirm('¿Seguro que deseas eliminar esta aula?')) return;
+    await deleteAula(id);
+    const updated = await getAulas();
+    setClassrooms(updated);
   };
 
   const toggleAvail = (day: number, slot: number) => {
@@ -75,7 +180,7 @@ export default function RecursosPage() {
           <p style={{ fontSize: 13.5, color: '#64748b', margin: '4px 0 0' }}>Administra el cuerpo docente, sus competencias y los espacios físicos disponibles.</p>
         </div>
         <button
-          onClick={() => activeTab === 'docentes' ? openTeacherModal() : setModal({ open: true, type: 'classroom', editId: null })}
+          onClick={() => activeTab === 'docentes' ? openTeacherModal() : openAulaModal()}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '9px 18px', borderRadius: 10, fontSize: 13.5, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
           <Plus style={{ width: 15, height: 15 }} />
           {activeTab === 'docentes' ? 'Nuevo Docente' : 'Nueva Aula'}
@@ -128,7 +233,7 @@ export default function RecursosPage() {
                       style={{ padding: 7, border: 'none', background: '#f1f5f9', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#475569' }}>
                       <Edit2 style={{ width: 13, height: 13 }} />
                     </button>
-                    <button style={{ padding: 7, border: 'none', background: '#fef2f2', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#ef4444' }}>
+                    <button onClick={() => handleDeleteTeacher(t.id)} style={{ padding: 7, border: 'none', background: '#fef2f2', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#ef4444' }}>
                       <Trash2 style={{ width: 13, height: 13 }} />
                     </button>
                   </div>
@@ -171,9 +276,14 @@ export default function RecursosPage() {
                 onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                   <div style={{ padding: 10, background: '#eff6ff', borderRadius: 10 }}><Building2 style={{ width: 17, height: 17, color: '#3b82f6' }} /></div>
-                  <button onClick={() => setModal({ open: true, type: 'classroom', editId: a.id })} style={{ padding: 7, border: 'none', background: '#f1f5f9', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#475569' }}>
-                    <Edit2 style={{ width: 13, height: 13 }} />
-                  </button>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => openAulaModal(a.id)} style={{ padding: 7, border: 'none', background: '#f1f5f9', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#475569' }}>
+                      <Edit2 style={{ width: 13, height: 13 }} />
+                    </button>
+                    <button onClick={() => handleDeleteAula(a.id)} style={{ padding: 7, border: 'none', background: '#fef2f2', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#ef4444' }}>
+                      <Trash2 style={{ width: 13, height: 13 }} />
+                    </button>
+                  </div>
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{a.name}</div>
                 <span style={{ display: 'inline-block', fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: cfg.bg, color: cfg.color, marginBottom: 16 }}>{cfg.label}</span>
@@ -201,18 +311,27 @@ export default function RecursosPage() {
               </button>
             </div>
             <div style={{ overflowY: 'auto', flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {errorMsg && <div style={{ color: 'red', fontSize: 13, padding: '10px', background: '#fee2e2', borderRadius: 8 }}>{errorMsg}</div>}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div style={{ gridColumn: '1/-1' }}>
-                  <label style={s.label}>Nombre Completo</label>
-                  <input type="text" placeholder="Ej. Dr. María García" style={s.input} />
+                <div>
+                  <label style={s.label}>DNI</label>
+                  <input type="text" placeholder="Ej. 12345678" value={tempDni} onChange={e => setTempDni(e.target.value)} style={s.input} />
                 </div>
                 <div>
                   <label style={s.label}>Correo</label>
-                  <input type="email" placeholder="docente@uni.edu" style={s.input} />
+                  <input type="email" placeholder="docente@uni.edu" value={tempEmail} onChange={e => setTempEmail(e.target.value)} style={s.input} />
                 </div>
                 <div>
-                  <label style={s.label}>Máx. Horas / Semana</label>
-                  <input type="number" defaultValue={40} style={s.input} />
+                  <label style={s.label}>Nombre</label>
+                  <input type="text" placeholder="Ej. María" value={tempNombre} onChange={e => setTempNombre(e.target.value)} style={s.input} />
+                </div>
+                <div>
+                  <label style={s.label}>Apellido</label>
+                  <input type="text" placeholder="Ej. García" value={tempApellido} onChange={e => setTempApellido(e.target.value)} style={s.input} />
+                </div>
+                <div style={{ gridColumn: '1/-1' }}>
+                  <label style={s.label}>Especialidad</label>
+                  <input type="text" placeholder="Ej. Ingeniería de Software" value={tempEspecialidad} onChange={e => setTempEspecialidad(e.target.value)} style={s.input} />
                 </div>
               </div>
 
@@ -270,13 +389,10 @@ export default function RecursosPage() {
                 </div>
               </div>
 
-              <div style={{ padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, fontSize: 12.5, color: '#92400e', fontWeight: 500 }}>
-                ⚠ Funcionalidad de persistencia pendiente de integración con API.
-              </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', flexShrink: 0 }}>
               <button onClick={() => setModal({ ...modal, open: false })} style={s.btnGhost}>Cancelar</button>
-              <button onClick={() => setModal({ ...modal, open: false })} style={s.btn}>Guardar Cambios</button>
+              <button onClick={handleSaveTeacher} disabled={isSaving} style={{ ...s.btn, opacity: isSaving ? 0.7 : 1 }}>{isSaving ? 'Guardando...' : 'Guardar Cambios'}</button>
             </div>
           </div>
         </div>
@@ -293,18 +409,19 @@ export default function RecursosPage() {
               </button>
             </div>
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {aulaErrorMsg && <div style={{ color: 'red', fontSize: 13, padding: '10px', background: '#fee2e2', borderRadius: 8 }}>{aulaErrorMsg}</div>}
               <div>
                 <label style={s.label}>Nombre / Código</label>
-                <input type="text" placeholder="Ej. A-301" style={s.input} />
+                <input type="text" placeholder="Ej. A-301" value={tempAulaNombre} onChange={e => setTempAulaNombre(e.target.value)} style={s.input} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={s.label}>Capacidad (pax)</label>
-                  <input type="number" defaultValue={30} style={s.input} />
+                  <input type="number" value={tempAulaCapacidad} onChange={e => setTempAulaCapacidad(Number(e.target.value))} style={s.input} />
                 </div>
                 <div>
                   <label style={s.label}>Tipo</label>
-                  <select style={{ ...s.input }}>
+                  <select value={tempAulaTipo} onChange={e => setTempAulaTipo(e.target.value)} style={{ ...s.input }}>
                     {ROOM_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
@@ -312,7 +429,7 @@ export default function RecursosPage() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
               <button onClick={() => setModal({ ...modal, open: false })} style={s.btnGhost}>Cancelar</button>
-              <button onClick={() => setModal({ ...modal, open: false })} style={s.btn}>Guardar</button>
+              <button onClick={handleSaveAula} disabled={isSaving} style={{ ...s.btn, opacity: isSaving ? 0.7 : 1 }}>{isSaving ? 'Guardando...' : 'Guardar'}</button>
             </div>
           </div>
         </div>
