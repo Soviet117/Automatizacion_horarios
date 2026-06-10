@@ -40,6 +40,11 @@ export interface Teacher {
   maxHours: number;
   competencies: string[]; // Array of Course IDs
   availability: Record<number, number[]>;
+  dni?: string;
+  nombre?: string;
+  apellido?: string;
+  especialidad?: string;
+  email?: string;
 }
 
 export interface Classroom {
