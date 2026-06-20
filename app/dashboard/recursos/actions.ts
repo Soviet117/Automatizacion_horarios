@@ -9,6 +9,7 @@ export async function getDocentes(): Promise<Teacher[]> {
     include: {
       usuario: true,
       disponibilidad_docente: true,
+      competencia_docente: true,
     }
   });
 
@@ -21,7 +22,7 @@ export async function getDocentes(): Promise<Teacher[]> {
     especialidad: d.nom_especialidad || '',
     email: d.usuario?.email || '',
     maxHours: 40,
-    competencies: [], 
+    competencies: d.competencia_docente ? d.competencia_docente.map((c: any) => c.id_curso) : [], 
     availability: d.disponibilidad_docente.reduce((acc: any, curr: any) => {
         if (!acc[curr.id_dia]) acc[curr.id_dia] = [];
         acc[curr.id_dia].push(curr.id_bloque);
@@ -94,6 +95,11 @@ export async function createDocente(data: { dni: string, nombre: string, apellid
              id_bloque: bloque
           }))
         )
+      },
+      competencia_docente: {
+        create: data.competencies.map((id_curso: string) => ({
+          id_curso
+        }))
       }
     }
   });
@@ -124,6 +130,7 @@ export async function updateDocente(id_docente: string, data: { dni: string, nom
   }
 
   await prisma.disponibilidad_docente.deleteMany({ where: { id_docente } });
+  await prisma.competencia_docente.deleteMany({ where: { id_docente } });
 
   await prisma.docente.update({
     where: { id_docente },
@@ -141,6 +148,11 @@ export async function updateDocente(id_docente: string, data: { dni: string, nom
              id_bloque: bloque
           }))
         )
+      },
+      competencia_docente: {
+        create: data.competencies.map((id_curso: string) => ({
+          id_curso
+        }))
       }
     }
   });
@@ -157,61 +169,12 @@ export async function deleteDocente(id_docente: string) {
   revalidatePath('/dashboard/recursos');
 }
 
-export async function getAulas(): Promise<Classroom[]> {
-  const aulas = await prisma.aula.findMany();
-  return aulas.map((a: any) => ({
-    id: a.id_aula,
-    name: a.nom_aula,
-    type: (a.id_tipo_aula as RoomTypeValue) || 'classroom',
-    capacity: a.capacidad,
+export async function getCursos(): Promise<any[]> {
+  const cursos = await prisma.curso.findMany({
+    select: { id_curso: true, nom_curso: true }
+  });
+  return cursos.map((c: any) => ({
+    id: c.id_curso,
+    name: c.nom_curso
   }));
-}
-
-export async function createAula(data: { name: string, type: string, capacity: number }) {
-  const existing = await prisma.aula.findFirst({ where: { nom_aula: data.name } });
-  if (existing) throw new Error('Ya existe un aula con este nombre');
-
-  await prisma.tipo_aula.upsert({
-    where: { id_tipo_aula: data.type },
-    update: {},
-    create: { id_tipo_aula: data.type, nom_tipo_aula: data.type }
-  });
-
-  await prisma.aula.create({
-    data: {
-      id_aula: crypto.randomUUID(),
-      nom_aula: data.name,
-      id_tipo_aula: data.type,
-      capacidad: data.capacity
-    }
-  });
-
-  revalidatePath('/dashboard/recursos');
-}
-
-export async function updateAula(id_aula: string, data: { name: string, type: string, capacity: number }) {
-  const existing = await prisma.aula.findFirst({ where: { nom_aula: data.name, NOT: { id_aula } } });
-  if (existing) throw new Error('Ya existe otra aula con este nombre');
-
-  await prisma.tipo_aula.upsert({
-    where: { id_tipo_aula: data.type },
-    update: {},
-    create: { id_tipo_aula: data.type, nom_tipo_aula: data.type }
-  });
-
-  await prisma.aula.update({
-    where: { id_aula },
-    data: {
-      nom_aula: data.name,
-      id_tipo_aula: data.type,
-      capacidad: data.capacity
-    }
-  });
-
-  revalidatePath('/dashboard/recursos');
-}
-
-export async function deleteAula(id_aula: string) {
-  await prisma.aula.delete({ where: { id_aula } });
-  revalidatePath('/dashboard/recursos');
 }

@@ -21,6 +21,14 @@ export async function PUT(
       )
     }
 
+    if (id_tipo_aula) {
+      await prisma.tipo_aula.upsert({
+        where: { id_tipo_aula },
+        update: {},
+        create: { id_tipo_aula, nom_tipo_aula: id_tipo_aula }
+      });
+    }
+
     const aula = await prisma.aula.update({
       where: { id_aula: id },
       data: {

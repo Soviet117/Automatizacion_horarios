@@ -17,21 +17,21 @@ model carrera {
   id_carrera   String         @id(map: "carrera_pk") @default(uuid()) @db.VarChar
   nom_carrera  String         @db.VarChar
   id_facultad  String         @db.VarChar
-  facultad     facultad       @relation(fields: [id_facultad], references: [id_facultad], onDelete: Cascade, onUpdate: Cascade, map: "carrera_facultad_fk")
-  plan_estudio plan_estudio[]
+  facultad     facultad       @relation(fields: [id_facultad], references: [id_facultad], onDelete: Cascade, map: "carrera_facultad_fk")
   curso        curso[]
+  plan_estudio plan_estudio[]
 }
 
 model plan_estudio {
   id_plan    String  @id(map: "plan_estudio_pk") @default(uuid()) @db.VarChar
   nom_plan   String  @db.VarChar
   id_carrera String  @db.VarChar
-  carrera    carrera @relation(fields: [id_carrera], references: [id_carrera], onDelete: Cascade, onUpdate: Cascade, map: "plan_estudio_carrera_fk")
   curso      curso[]
+  carrera    carrera @relation(fields: [id_carrera], references: [id_carrera], onDelete: Cascade, map: "plan_estudio_carrera_fk")
 }
 
 model ciclo {
-  id_ciclo  Int     @id(map: "ciclo_pk") @default(autoincrement())
+  id_ciclo  Int     @id(map: "ciclo_pk")
   nom_ciclo String  @db.VarChar
   curso     curso[]
 }
@@ -43,25 +43,25 @@ model tipo_sesion {
 }
 
 model curso {
-  id_curso       String       @id(map: "curso_pk") @db.VarChar
-  creditos       Int
-  nom_curso      String       @db.VarChar
-  id_carrera     String       @db.VarChar
-  modalidad      String       @db.VarChar
-  tipo_curso     String       @db.VarChar
-  id_ciclo       Int
-  horas_teoricas  Int        @default(0)
-  horas_practicas Int        @default(0)
-  alumnos         Int        @default(0)
-  id_plan        String?      @db.VarChar
-  id_usuario     String?      @db.VarChar
-
-  usuario     usuario?      @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "curso_usuario_fk")
-  carrera     carrera       @relation(fields: [id_carrera], references: [id_carrera], onDelete: Cascade, onUpdate: Cascade, map: "curso_carrera_fk")
-  ciclo       ciclo         @relation(fields: [id_ciclo], references: [id_ciclo], onDelete: Cascade, onUpdate: Cascade, map: "curso_ciclo_fk")
-  tipo_sesion tipo_sesion   @relation(fields: [tipo_curso], references: [id_tipo_sesion], onDelete: Cascade, onUpdate: Cascade, map: "curso_tipo_sesion_fk")
-  plan        plan_estudio? @relation(fields: [id_plan], references: [id_plan], onDelete: SetNull, onUpdate: Cascade, map: "curso_plan_estudio_fk")
-  asignacion  asignacion[]
+  id_curso            String                @id(map: "curso_pk") @db.VarChar
+  creditos            Int
+  nom_curso           String                @db.VarChar
+  id_carrera          String                @db.VarChar
+  modalidad           String                @db.VarChar
+  tipo_curso          String                @db.VarChar
+  id_ciclo            Int
+  alumnos             Int                   @default(0)
+  horas_practicas     Int                   @default(0)
+  horas_teoricas      Int                   @default(0)
+  id_plan             String?               @db.VarChar
+  id_usuario          String?               @db.VarChar
+  asignacion          asignacion[]
+  carrera             carrera               @relation(fields: [id_carrera], references: [id_carrera], onDelete: Cascade, map: "curso_carrera_fk")
+  ciclo               ciclo                 @relation(fields: [id_ciclo], references: [id_ciclo], onDelete: Cascade, map: "curso_ciclo_fk")
+  plan                plan_estudio?         @relation(fields: [id_plan], references: [id_plan], map: "curso_plan_estudio_fk")
+  tipo_sesion         tipo_sesion           @relation(fields: [tipo_curso], references: [id_tipo_sesion], onDelete: Cascade, map: "curso_tipo_sesion_fk")
+  usuario             usuario?              @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "curso_usuario_fk")
+  competencia_docente competencia_docente[]
 }
 
 model docente {
@@ -71,11 +71,11 @@ model docente {
   ape_docente            String                   @db.VarChar
   nom_especialidad       String                   @db.VarChar
   id_usuario             String?                  @db.VarChar
-
-  usuario                usuario?                 @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "docente_usuario_fk")
-  disponibilidad_docente disponibilidad_docente[]
   asignacion             asignacion[]
+  disponibilidad_docente disponibilidad_docente[]
+  usuario                usuario?                 @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "docente_usuario_fk")
   horario_sesion         horario_sesion[]
+  competencia_docente    competencia_docente[]
 }
 
 model disponibilidad_docente {
@@ -83,9 +83,9 @@ model disponibilidad_docente {
   id_docente        String         @db.VarChar
   id_dia            Int
   id_bloque         Int
-  docente           docente        @relation(fields: [id_docente], references: [id_docente], onDelete: Cascade, map: "disponibilidad_docente_docente_fk")
-  dia_semana        dia_semana     @relation(fields: [id_dia], references: [id_dia], onDelete: Cascade, map: "disponibilidad_docente_dia_fk")
   bloque_horario    bloque_horario @relation(fields: [id_bloque], references: [id_bloque], onDelete: Cascade, map: "disponibilidad_docente_bloque_fk")
+  dia_semana        dia_semana     @relation(fields: [id_dia], references: [id_dia], onDelete: Cascade, map: "disponibilidad_docente_dia_fk")
+  docente           docente        @relation(fields: [id_docente], references: [id_docente], onDelete: Cascade, map: "disponibilidad_docente_docente_fk")
 
   @@unique([id_docente, id_dia, id_bloque], map: "disponibilidad_docente_uq")
   @@index([id_docente])
@@ -97,9 +97,8 @@ model aula {
   id_tipo_aula   String           @db.VarChar
   capacidad      Int
   id_usuario     String?          @db.VarChar
-
+  tipo_aula      tipo_aula        @relation(fields: [id_tipo_aula], references: [id_tipo_aula], onDelete: Cascade, map: "aula_tipo_aula_fk")
   usuario        usuario?         @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "aula_usuario_fk")
-  tipo_aula      tipo_aula        @relation(fields: [id_tipo_aula], references: [id_tipo_aula], onDelete: Cascade, onUpdate: Cascade, map: "aula_tipo_aula_fk")
   horario_sesion horario_sesion[]
 }
 
@@ -137,8 +136,8 @@ model asignacion {
   id_docente     String            @db.VarChar
   id_curso       String            @db.VarChar
   id_periodo     String            @db.VarChar
-  docente        docente           @relation(fields: [id_docente], references: [id_docente], onDelete: Cascade, map: "asignacion_docente_fk")
   curso          curso             @relation(fields: [id_curso], references: [id_curso], onDelete: Cascade, map: "asignacion_curso_fk")
+  docente        docente           @relation(fields: [id_docente], references: [id_docente], onDelete: Cascade, map: "asignacion_docente_fk")
   periodo        periodo_academico @relation(fields: [id_periodo], references: [id_periodo], onDelete: Cascade, map: "asignacion_periodo_fk")
   horario_sesion horario_sesion[]
 
@@ -158,14 +157,13 @@ model horario_sesion {
   id_bloque      Int
   tipo_sesion    String            @db.VarChar
   id_usuario     String?           @db.VarChar
-
-  usuario        usuario?          @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "horario_sesion_usuario_fk")
   asignacion     asignacion        @relation(fields: [id_asignacion], references: [id_asignacion], onDelete: Cascade, map: "horario_sesion_asignacion_fk")
+  aula           aula              @relation(fields: [id_aula], references: [id_aula], onDelete: Cascade, map: "horario_sesion_aula_fk")
+  bloque_horario bloque_horario    @relation(fields: [id_bloque], references: [id_bloque], onDelete: Cascade, map: "horario_sesion_bloque_fk")
+  dia_semana     dia_semana        @relation(fields: [id_dia], references: [id_dia], onDelete: Cascade, map: "horario_sesion_dia_fk")
   docente        docente           @relation(fields: [id_docente], references: [id_docente], onDelete: Cascade, map: "horario_sesion_docente_fk")
   periodo        periodo_academico @relation(fields: [id_periodo], references: [id_periodo], onDelete: Cascade, map: "horario_sesion_periodo_fk")
-  aula           aula              @relation(fields: [id_aula], references: [id_aula], onDelete: Cascade, map: "horario_sesion_aula_fk")
-  dia_semana     dia_semana        @relation(fields: [id_dia], references: [id_dia], onDelete: Cascade, map: "horario_sesion_dia_fk")
-  bloque_horario bloque_horario    @relation(fields: [id_bloque], references: [id_bloque], onDelete: Cascade, map: "horario_sesion_bloque_fk")
+  usuario        usuario?          @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "horario_sesion_usuario_fk")
 
   @@unique([id_docente, id_dia, id_bloque, id_periodo], map: "horario_sesion_docente_uq")
   @@unique([id_aula, id_dia, id_bloque, id_periodo], map: "horario_sesion_aula_uq")
@@ -176,13 +174,23 @@ model horario_sesion {
 }
 
 model usuario {
-  id_usuario String @id(map: "usuario_pk") @default(uuid()) @db.VarChar
-  email      String @unique @db.VarChar
-  password   String @db.VarChar
-  nombre     String @db.VarChar
-
+  id_usuario     String           @id(map: "usuario_pk") @default(uuid()) @db.VarChar
+  email          String           @unique @db.VarChar
+  password       String           @db.VarChar
+  nombre         String           @db.VarChar
+  aula           aula[]
   curso          curso[]
   docente        docente[]
-  aula           aula[]
   horario_sesion horario_sesion[]
+}
+
+model competencia_docente {
+  id_docente String  @db.VarChar
+  id_curso   String  @db.VarChar
+  curso      curso   @relation(fields: [id_curso], references: [id_curso], onDelete: Cascade, map: "competencia_docente_curso_fk")
+  docente    docente @relation(fields: [id_docente], references: [id_docente], onDelete: Cascade, map: "competencia_docente_docente_fk")
+
+  @@id([id_docente, id_curso], map: "competencia_docente_pk")
+  @@index([id_curso])
+  @@index([id_docente])
 }
