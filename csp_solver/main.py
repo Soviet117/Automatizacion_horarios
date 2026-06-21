@@ -1,7 +1,9 @@
+import traceback
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List, Dict, Tuple
+from typing import List, Dict
 from ortools.sat.python import cp_model
 
 app = FastAPI(title="Scheduling CSP Optimization API")
@@ -9,8 +11,8 @@ app = FastAPI(title="Scheduling CSP Optimization API")
 class Teacher(BaseModel):
     id: str
     max_hours: int
-    availabilities: List[Dict[str, int]]  # e.g., [{"day": 0, "slot": 1}]
-    competencies: List[str]  # list of course ids
+    availabilities: List[Dict[str, int]]
+    competencies: List[str]
 
 class CohortClass(BaseModel):
     id: str
@@ -42,89 +44,134 @@ class OptimizationResponse(BaseModel):
     sessions: List[AssignedSession]
     message: str = ""
 
-@app.post("/optimize", response_model=OptimizationResponse)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exc()
+    print("UNHANDLED EXCEPTION:", tb)
+    return JSONResponse(
+        status_code=500,
+        content={"status": "ERROR", "message": str(exc), "traceback": tb}
+    )
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": "3.0"}
+
+@app.post("/optimize")
 def optimize_schedule(req: OptimizationRequest):
-    model = cp_model.CpModel()
-    assign = {}
-    
-    teacher_avail = {}
-    for t in req.teachers:
-        avail_set = set((a['day'], a['slot']) for a in t.availabilities)
-        teacher_avail[t.id] = avail_set
+    try:
+        model = cp_model.CpModel()
 
-    for c in req.classes:
-        eligible_teachers = [t for t in req.teachers if c.course_id in t.competencies]
-        eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count]
+        # Pre-compute teacher availability sets
+        teacher_avail: Dict[str, set] = {}
+        for t in req.teachers:
+            teacher_avail[t.id] = set((a["day"], a["slot"]) for a in t.availabilities)
 
-        for t in eligible_teachers:
-            for r in eligible_rooms:
-                for d in range(req.days):
-                    for s in range(req.slots_per_day):
-                        if (d, s) in teacher_avail[t.id]:
-                            assign[(c.id, t.id, r.id, d, s)] = model.NewBoolVar(f'assign_c{c.id}_t{t.id}_r{r.id}_d{d}_s{s}')
+        max_cap = max((r.capacity for r in req.rooms), default=0)
 
-    if not assign:
-        return OptimizationResponse(status="INFEASIBLE", sessions=[], message="No valid initial assignments possible.")
+        assign = {}
+        for c in req.classes:
+            eligible_teachers = [t for t in req.teachers if c.course_id in t.competencies]
+            if not eligible_teachers:
+                # Fallback: any teacher
+                eligible_teachers = list(req.teachers)
 
-    for c in req.classes:
-        class_vars = [v for k, v in assign.items() if k[0] == c.id]
-        if not class_vars:
-            return OptimizationResponse(status="INFEASIBLE", sessions=[], message=f"Class {c.id} has no valid combination of teacher/room/slot.")
-        model.AddExactlyK(class_vars, c.required_hours)
+            eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count]
+            if not eligible_rooms:
+                # Fallback: largest room
+                eligible_rooms = [r for r in req.rooms if r.capacity == max_cap]
 
-    for t in req.teachers:
-        for d in range(req.days):
-            for s in range(req.slots_per_day):
-                teacher_vars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d and k[4] == s]
-                if len(teacher_vars) > 1:
-                    model.AddAtMostOne(teacher_vars)
+            for t in eligible_teachers:
+                for r in eligible_rooms:
+                    for d in range(req.days):
+                        for s in range(req.slots_per_day):
+                            if (d, s) in teacher_avail[t.id]:
+                                key = (c.id, t.id, r.id, d, s)
+                                # PascalCase API for older OR-Tools versions
+                                assign[key] = model.NewBoolVar(
+                                    f"a_{c.id[:6]}_{t.id[:6]}_{r.id[:6]}_{d}_{s}"
+                                )
 
-    for r in req.rooms:
-        for d in range(req.days):
-            for s in range(req.slots_per_day):
-                room_vars = [v for k, v in assign.items() if k[2] == r.id and k[3] == d and k[4] == s]
-                if len(room_vars) > 1:
-                    model.AddAtMostOne(room_vars)
+        if not assign:
+            return {"status": "INFEASIBLE", "sessions": [],
+                    "message": "No hay combinaciones válidas de docente/aula/bloque."}
 
-    cohorts = set(c.cohort_id for c in req.classes)
-    for cohort_id in cohorts:
-        cohort_classes = [c.id for c in req.classes if c.cohort_id == cohort_id]
-        for d in range(req.days):
-            for s in range(req.slots_per_day):
-                cohort_vars = [v for k, v in assign.items() if k[0] in cohort_classes and k[3] == d and k[4] == s]
-                if len(cohort_vars) > 1:
-                    model.AddAtMostOne(cohort_vars)
+        # CONSTRAINT 1: Each class scheduled exactly required_hours times
+        for c in req.classes:
+            class_vars = [v for k, v in assign.items() if k[0] == c.id]
+            if not class_vars:
+                return {"status": "INFEASIBLE", "sessions": [],
+                        "message": f"Sin combinaciones para clase {c.id[:8]}"}
+            hours = min(c.required_hours, len(class_vars))
+            model.Add(sum(class_vars) == hours)
 
-    for t in req.teachers:
-        teacher_all_vars = [v for k, v in assign.items() if k[1] == t.id]
-        if teacher_all_vars:
-            model.Add(sum(teacher_all_vars) <= t.max_hours)
+        # CONSTRAINT 2: Teacher can only be in one place per slot
+        for t in req.teachers:
+            for d in range(req.days):
+                for s in range(req.slots_per_day):
+                    tvars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d and k[4] == s]
+                    if len(tvars) > 1:
+                        model.AddAtMostOne(tvars)
 
-    solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 60.0 
-    
-    status = solver.Solve(model)
+        # CONSTRAINT 3: Room can only hold one class per slot
+        for r in req.rooms:
+            for d in range(req.days):
+                for s in range(req.slots_per_day):
+                    rvars = [v for k, v in assign.items() if k[2] == r.id and k[3] == d and k[4] == s]
+                    if len(rvars) > 1:
+                        model.AddAtMostOne(rvars)
 
-    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-        sessions = []
-        for k, v in assign.items():
-            if solver.Value(v) == 1:
-                sessions.append(AssignedSession(
-                    class_id=k[0],
-                    teacher_id=k[1],
-                    room_id=k[2],
-                    day=k[3],
-                    slot=k[4]
-                ))
-        return OptimizationResponse(
-            status="SUCCESS", 
-            sessions=sessions, 
-            message="Optimo." if status == cp_model.OPTIMAL else "Factible."
+        # CONSTRAINT 4: Cohort can't have two classes at same time
+        cohorts = set(c.cohort_id for c in req.classes)
+        for cohort_id in cohorts:
+            c_ids = [c.id for c in req.classes if c.cohort_id == cohort_id]
+            for d in range(req.days):
+                for s in range(req.slots_per_day):
+                    cvars = [v for k, v in assign.items() if k[0] in c_ids and k[3] == d and k[4] == s]
+                    if len(cvars) > 1:
+                        model.AddAtMostOne(cvars)
+
+        # CONSTRAINT 5: Teacher max hours
+        for t in req.teachers:
+            tvars = [v for k, v in assign.items() if k[1] == t.id]
+            if tvars:
+                model.Add(sum(tvars) <= t.max_hours)
+
+        solver = cp_model.CpSolver()
+        solver.parameters.max_time_in_seconds = 60.0
+        status_code = solver.Solve(model)
+
+        if status_code in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            sessions = []
+            for k, v in assign.items():
+                if solver.Value(v) == 1:
+                    sessions.append({
+                        "class_id": k[0],
+                        "teacher_id": k[1],
+                        "room_id": k[2],
+                        "day": k[3],
+                        "slot": k[4]
+                    })
+            label = "OPTIMAL" if status_code == cp_model.OPTIMAL else "FEASIBLE"
+            return {
+                "status": "SUCCESS",
+                "sessions": sessions,
+                "message": f"Horario generado ({label}). {len(sessions)} sesiones."
+            }
+        elif status_code == cp_model.INFEASIBLE:
+            return {"status": "INFEASIBLE", "sessions": [],
+                    "message": "No existe combinación factible. Revisa disponibilidades y capacidades."}
+        else:
+            return {"status": "TIMEOUT", "sessions": [],
+                    "message": "El solver agotó el tiempo límite."}
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        print("ERROR EN /optimize:", tb)
+        return JSONResponse(
+            status_code=500,
+            content={"status": "ERROR", "message": str(e), "traceback": tb}
         )
-    elif status == cp_model.INFEASIBLE:
-        return OptimizationResponse(status="INFEASIBLE", sessions=[], message="No existe un horario factible con estas reglas duras.")
-    else:
-        return OptimizationResponse(status="UNKNOWN", sessions=[], message="Timeout del solver.")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

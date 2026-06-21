@@ -5,7 +5,7 @@ import {
   Layers, Plus, Copy, Trash2, CheckCircle2, Clock, Archive,
   ArrowRight, X, GitBranch, Zap
 } from 'lucide-react';
-import { getEscenarios, createEscenario, deleteEscenario, publishEscenario, duplicateEscenario } from './actions';
+import { getEscenarios, createEscenario, deleteEscenario, publishEscenario, duplicateEscenario, runOptimizationForEscenario } from './actions';
 
 type ScenarioStatus = 'published' | 'draft' | 'simulation';
 interface Scenario {
@@ -90,6 +90,19 @@ export default function EscenariosPage() {
       const nuevo = await duplicateEscenario(id);
       await loadData();
       setSelected(nuevo.id_escenario);
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleOptimize = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      await runOptimizationForEscenario(id);
+      await loadData();
+      alert('Horario generado y guardado en este escenario exitosamente.');
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -197,9 +210,9 @@ export default function EscenariosPage() {
                     Duplicar escenario
                   </button>
                   
-                  <button disabled={true} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, cursor: 'not-allowed', fontSize: 13.5, fontWeight: 600, color: '#94a3b8', fontFamily: 'inherit', textAlign: 'left', opacity: 0.7 }}>
-                    <div style={{ padding: 8, background: '#f1f5f9', borderRadius: 9 }}><Zap style={{ width: 15, height: 15, color: '#94a3b8' }} /></div>
-                    Re-optimizar (CSP) [Próximamente]
+                  <button onClick={() => handleOptimize(sel.id)} disabled={isProcessing || sel.status === 'published'} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, cursor: (isProcessing || sel.status === 'published') ? 'not-allowed' : 'pointer', fontSize: 13.5, fontWeight: 600, color: '#8b5cf6', fontFamily: 'inherit', textAlign: 'left', opacity: (isProcessing || sel.status === 'published') ? 0.7 : 1 }}>
+                    <div style={{ padding: 8, background: '#f5f3ff', borderRadius: 9 }}><Zap style={{ width: 15, height: 15, color: '#8b5cf6' }} /></div>
+                    {isProcessing ? 'Optimizando...' : 'Re-optimizar (CSP)'}
                   </button>
                   
                   {sel.status !== 'published' && (

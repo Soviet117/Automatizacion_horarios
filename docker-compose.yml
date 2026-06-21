@@ -13,6 +13,7 @@ services:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
+      - CSP_SOLVER_URL=http://csp_solver:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,6 +46,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    volumes:
+      - ./csp_solver:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     networks:
       - app-network

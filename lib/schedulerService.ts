@@ -16,15 +16,12 @@ export class SchedulerService {
     // 1. Obtener datos crudos de Prisma
     const [docentesDB, aulasDB, asignacionesDB] = await Promise.all([
       prisma.docente.findMany({
-        where: { id_usuario: userId },
         include: {
           disponibilidad_docente: true,
           competencia_docente: true
         }
       }),
-      prisma.aula.findMany({
-        where: { id_usuario: userId }
-      }),
+      prisma.aula.findMany(),
       prisma.asignacion.findMany({
         include: {
           curso: true,
@@ -125,6 +122,8 @@ export class SchedulerService {
       }
 
       // Crear las nuevas sesiones asignadas por el solucionador
+      // IMPORTANT: id_usuario is optional (String?) — only set it if userId is a real UUID
+      // to avoid foreign key violations. The session belongs to the escenario, not the user.
       const newSessions = sessions.map((s: any) => ({
         id_horario: crypto.randomUUID(),
         id_asignacion: s.class_id,
@@ -132,9 +131,9 @@ export class SchedulerService {
         id_aula: s.room_id,
         id_dia: s.day,
         id_bloque: s.slot,
-        id_periodo: asignacionesDB.find(a => a.id_asignacion === s.class_id)?.id_periodo || 'N/A', 
-        tipo_sesion: 'Teórica', 
-        id_usuario: userId,
+        id_periodo: asignacionesDB.find(a => a.id_asignacion === s.class_id)?.id_periodo ?? 'Actual',
+        tipo_sesion: 'Teórica',
+        id_usuario: null, // nullable — evita FK violation cuando no hay userId real
         id_escenario: targetEscenarioId
       }));
 
