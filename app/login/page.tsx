@@ -3,20 +3,17 @@
 import { FormEvent, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
-import styles from '../../components/ui/styles.module.css';
+import { Lock, User, Eye, EyeOff, GraduationCap } from 'lucide-react';
+import s from './login.module.css';
 
 const initialErrors = {
   username: '',
   password: '',
-  name: '',
 };
 
 export default function LoginPage() {
-  const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState(initialErrors);
   const [loadingForm, setLoadingForm] = useState(false);
@@ -36,10 +33,9 @@ export default function LoginPage() {
 
     if (!username.trim()) nextErrors.username = 'Ingresa tu correo electrónico';
     if (!password) nextErrors.password = 'Ingresa tu contraseña';
-    if (isRegistering && !name.trim()) nextErrors.name = 'Ingresa tu nombre completo';
 
     setErrors(nextErrors);
-    return !nextErrors.username && !nextErrors.password && (!isRegistering || !nextErrors.name);
+    return !nextErrors.username && !nextErrors.password;
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -50,13 +46,10 @@ export default function LoginPage() {
     setLoadingForm(true);
     
     try {
-      const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login';
-      const body = isRegistering ? { username, password, name } : { username, password };
-
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
@@ -66,117 +59,131 @@ export default function LoginPage() {
       } else {
         login({ username: data.username || data.id, name: data.name, role: data.role || 'user' });
       }
-    } catch (error) {
+    } catch {
       setServerError('Error de conexión con el servidor');
     } finally {
       setLoadingForm(false);
     }
   };
 
-  const toggleMode = () => {
-    setIsRegistering(!isRegistering);
-    setErrors(initialErrors);
-    setServerError('');
-  };
-
-  if (loading || user) return null; // Avoid flicker
+  if (loading || user) return null;
 
   return (
-    <div className={styles.loginScreen}>
-      <div className={styles.loginWave} />
-      <div className={styles.loginCard}>
-        <div className={styles.loginLogo} aria-hidden="true">🎓</div>
-        <h1 className={styles.heading}>{isRegistering ? 'Crear Cuenta' : 'Bienvenido'}</h1>
-        <p className={styles.subheading}>{isRegistering ? 'Regístrate para comenzar' : 'Ingresa tus credenciales'}</p>
+    <div className={s.wrapper}>
+      {/* ── LEFT PANEL ── */}
+      <div className={s.brandSide}>
+        <div className={s.brandLogo}>
+          <div className={s.logoIcon}>
+            <GraduationCap className="w-5 h-5" strokeWidth={2.5} />
+          </div>
+          <span>Optimizer EIS</span>
+        </div>
 
-        <form className={styles.loginForm} onSubmit={handleSubmit} noValidate autoComplete="off">
-          
-          {isRegistering && (
-            <>
-              <div className={styles.loginInputWrap}>
-                <span className={styles.inputIcon}>👤</span>
+        <div className={s.brandContent}>
+          <h1 className={s.brandTitle}>
+            Gestión Inteligente de Horarios Universitarios
+          </h1>
+          <p className={s.brandDesc}>
+            Optimiza la asignación de aulas, disponibilidad docente y distribución de cohortes mediante motores de resolución CSP de última generación sin conflictos.
+          </p>
+        </div>
+
+        <div className={s.brandFooter}>
+          &copy; 2026 Optimizer Academic Suite. Todos los derechos reservados.
+        </div>
+      </div>
+
+      {/* ── RIGHT PANEL ── */}
+      <div className={s.formSide}>
+        <div className={s.formContainer}>
+          <div className={s.formHeader}>
+            <h2 className={s.formTitle}>Bienvenido de nuevo</h2>
+            <p className={s.formSubtitle}>Ingresa tus credenciales para acceder al sistema</p>
+          </div>
+
+          <form onSubmit={handleSubmit} noValidate>
+            {/* Username */}
+            <div className={s.formGroup}>
+              <label className={s.formLabel}>
+                Usuario o Correo Institucional
+              </label>
+              <div className={s.inputWrapper}>
+                <span className={s.inputIcon}>
+                  <User size={18} strokeWidth={2} />
+                </span>
                 <input
-                  id="register-name"
-                  type="text"
-                  className={`${styles.loginInput} ${errors.name ? styles.hasError : ''}`}
-                  placeholder="Nombre completo"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  type="email"
+                  className={`${s.formInput} ${errors.username ? s.formInputError : ''}`}
+                  placeholder="ejemplo@universidad.edu"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   autoFocus
                 />
               </div>
-              <div className={`${styles.inputError} ${errors.name ? styles.visible : ''}`}>
-                {errors.name}
-              </div>
-            </>
-          )}
-
-          <div className={styles.loginInputWrap}>
-            <span className={styles.inputIcon}>📧</span>
-            <input
-              id="login-user"
-              type="email"
-              className={`${styles.loginInput} ${errors.username ? styles.hasError : ''}`}
-              placeholder="Correo electrónico"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoFocus={!isRegistering}
-            />
-          </div>
-          <div className={`${styles.inputError} ${errors.username ? styles.visible : ''}`}>
-            {errors.username}
-          </div>
-
-          <div className={styles.loginInputWrap}>
-            <span className={styles.inputIcon}>🔒</span>
-            <input
-              id="login-pass"
-              type={showPassword ? 'text' : 'password'}
-              className={`${styles.loginInput} ${errors.password ? styles.hasError : ''}`}
-              placeholder="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button type="button" className={styles.togglePw} onClick={() => setShowPassword(!showPassword)}>
-              {showPassword ? '🙈' : '👁️'}
-            </button>
-          </div>
-          <div className={`${styles.inputError} ${errors.password ? styles.visible : ''}`}>
-            {errors.password}
-          </div>
-
-          {serverError && (
-            <div className={styles.inputError} style={{ opacity: 1, maxHeight: 'none', marginBottom: '10px' }}>
-              {serverError}
+              {errors.username && <p className={s.errorMsg}>{errors.username}</p>}
             </div>
-          )}
 
-          {!isRegistering && (
-            <div className={styles.formFooterRow}>
-              <label className={styles.customCheck}>
-                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-                <span className={styles.checkboxBox}>{rememberMe && <span className={styles.checkboxIcon}>✓</span>}</span>
-                Recordarme
+            {/* Password */}
+            <div className={s.formGroup}>
+              <label className={s.formLabel}>
+                Contraseña
               </label>
-              <button type="button" className={styles.loginLink}>Olvidé mi contraseña</button>
+              <div className={s.inputWrapper}>
+                <span className={s.inputIcon}>
+                  <Lock size={18} strokeWidth={2} />
+                </span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className={`${s.formInput} ${s.passwordInput} ${errors.password ? s.formInputError : ''}`}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className={s.passwordToggle}
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword
+                    ? <EyeOff size={18} strokeWidth={2} />
+                    : <Eye size={18} strokeWidth={2} />
+                  }
+                </button>
+              </div>
+              {errors.password && <p className={s.errorMsg}>{errors.password}</p>}
             </div>
-          )}
 
-          <button type="submit" className={`${styles.loginBtn} ${loadingForm ? styles.loading : ''}`}>
-            <span className={styles.btnText}>{isRegistering ? 'Registrarse' : 'Iniciar sesión'}</span>
-            {loadingForm && <span className={styles.spinner} aria-hidden="true" />}
-          </button>
-        </form>
+            {serverError && (
+              <div className={s.serverError}>{serverError}</div>
+            )}
 
-        <div className={styles.dividerRow}>
-          <div className={styles.dividerLine} />
-          <span className={styles.dividerText}>o</span>
-          <div className={styles.dividerLine} />
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loadingForm}
+              className={s.submitBtn}
+            >
+              {loadingForm ? (
+                <>
+                  <span className={s.spinner}></span>
+                  <span>Autenticando...</span>
+                </>
+              ) : (
+                <span>Iniciar Sesión</span>
+              )}
+            </button>
+          </form>
+
+          {/* Info Notice */}
+          <div className={s.infoNotice}>
+            <span style={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>💡</span>
+            <div>
+              <strong>¿No posees una cuenta activa?</strong>
+              Este sistema está restringido exclusivamente a coordinadores y administradores. Solicita tu acceso directamente con el departamento de TI de tu facultad.
+            </div>
+          </div>
         </div>
-
-        <button type="button" className={styles.demoButton} onClick={toggleMode}>
-          {isRegistering ? 'Ya tengo una cuenta. Iniciar sesión' : '¿No tienes cuenta? Regístrate'}
-        </button>
       </div>
     </div>
   );
