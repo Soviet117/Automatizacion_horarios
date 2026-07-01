@@ -10,6 +10,7 @@ export async function GET(request: Request) {
       where: userId ? { id_usuario: userId } : {},
       include: {
         disponibilidad_docente: true,
+        competencia_docente: true,
       },
       orderBy: { nom_docente: 'asc' },
     });
@@ -29,7 +30,8 @@ export async function GET(request: Request) {
         nom_docente: d.nom_docente,
         ape_docente: d.ape_docente,
         nom_especialidad: d.nom_especialidad,
-        disponibilidad: availability
+        disponibilidad: availability,
+        competencias: d.competencia_docente.map((c: any) => c.id_curso)
       };
     });
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, BookOpen, Clock, Users, Layers, Edit2, Trash2, GraduationCap, Building2, Settings } from 'lucide-react';
 import MateriaModal from '../../../components/MateriaModal';
+import AsignarDocenteModal from '../../../components/AsignarDocenteModal';
 
 interface Curso {
   id_curso: string;
@@ -34,6 +35,9 @@ export default function GestionCurricularPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCurso, setSelectedCurso] = useState<any>(null);
+
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [selectedCursoAssign, setSelectedCursoAssign] = useState<any>(null);
 
   useEffect(() => {
     fetchMaestros();
@@ -209,6 +213,10 @@ export default function GestionCurricularPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => { setSelectedCursoAssign(curso); setIsAssignModalOpen(true); }} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f8fafc', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#ecfdf5'; }} onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; }} title="Asignar Docente">
+                    <Users style={{ width: 14, height: 14 }} />
+                  </button>
                   <button onClick={() => handleOpenModal(curso)} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f8fafc', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; }} onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; }}>
                     <Edit2 style={{ width: 14, height: 14 }} />
@@ -282,13 +290,19 @@ export default function GestionCurricularPage() {
         </div>
       )}
 
-      {/* Modal */}
       <MateriaModal 
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSave={handleSaveModal}
         materia={selectedCurso}
         maestros={maestros}
+      />
+
+      {/* Asignar Docente Modal */}
+      <AsignarDocenteModal
+        isOpen={isAssignModalOpen}
+        onClose={() => { setIsAssignModalOpen(false); setSelectedCursoAssign(null); }}
+        curso={selectedCursoAssign}
       />
 
     </div>
