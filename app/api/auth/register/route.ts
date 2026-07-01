@@ -24,13 +24,16 @@ export async function POST(request: Request) {
       data: {
         email: username,
         password: hashedPassword,
-        nombre: name
+        nombre: name,
+        role: 'user'
       }
     });
 
     return NextResponse.json({
       id: newUser.id_usuario,
-      name: newUser.nombre
+      username: newUser.email,
+      name: newUser.nombre,
+      role: newUser.role
     }, { status: 201 });
 
   } catch (error) {

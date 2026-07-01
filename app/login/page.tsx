@@ -4,6 +4,7 @@ import { FormEvent, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Lock, User, Eye, EyeOff, GraduationCap } from 'lucide-react';
+import Link from 'next/link';
 import s from './login.module.css';
 
 const initialErrors = {
@@ -57,7 +58,7 @@ export default function LoginPage() {
       if (!res.ok) {
         setServerError(data.error || 'Ocurrió un error');
       } else {
-        login({ username: data.username || data.id, name: data.name, role: data.role || 'user' });
+        login({ username: data.username, name: data.name, role: data.role });
       }
     } catch {
       setServerError('Error de conexión con el servidor');
@@ -175,12 +176,15 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Info Notice */}
+          {/* Register link */}
           <div className={s.infoNotice}>
-            <span style={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>💡</span>
+            <span style={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>🔐</span>
             <div>
-              <strong>¿No posees una cuenta activa?</strong>
-              Este sistema está restringido exclusivamente a coordinadores y administradores. Solicita tu acceso directamente con el departamento de TI de tu facultad.
+              <strong>¿No tienes una cuenta?</strong>
+              <Link href="/register" style={{ color: '#02b078', fontWeight: 600, textDecoration: 'none' }}>
+                Regístrate aquí
+              </Link>
+              {' '}para crear un nuevo usuario en el sistema.
             </div>
           </div>
         </div>

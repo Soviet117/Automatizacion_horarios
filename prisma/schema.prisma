@@ -181,6 +181,7 @@ model usuario {
   email          String           @unique @db.VarChar
   password       String           @db.VarChar
   nombre         String           @db.VarChar
+  role           String           @default("user") @db.VarChar
   aula           aula[]
   curso          curso[]
   docente        docente[]
