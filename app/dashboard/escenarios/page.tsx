@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layers, Plus, Copy, Trash2, CheckCircle2, Clock, Archive,
-  ArrowRight, X, GitBranch, Zap
+  ArrowRight, X, GitBranch, Zap, Calendar, Users, Home
 } from 'lucide-react';
 import { getEscenarios, createEscenario, deleteEscenario, publishEscenario, duplicateEscenario, runOptimizationForEscenario } from './actions';
 
@@ -25,6 +25,12 @@ export default function EscenariosPage() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
+  
+  // Schedule Viewer state
+  const [scheduleModal, setScheduleModal] = useState(false);
+  const [scheduleData, setScheduleData] = useState<any[]>([]);
+  const [scheduleViewBy, setScheduleViewBy] = useState<'teacher' | 'room'>('teacher');
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
   
   // Create form state
   const [newName, setNewName] = useState('');
@@ -107,6 +113,25 @@ export default function EscenariosPage() {
       alert(e.message);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleViewSchedule = async (id: string) => {
+    setScheduleModal(true);
+    setLoadingSchedule(true);
+    try {
+      const res = await fetch(`/api/escenarios/${id}/horario`);
+      if (res.ok) {
+        const data = await res.json();
+        setScheduleData(data);
+      } else {
+        alert('Error al cargar horario');
+      }
+    } catch(e) {
+      console.error(e);
+      alert('Error de conexión');
+    } finally {
+      setLoadingSchedule(false);
     }
   };
 
@@ -216,11 +241,19 @@ export default function EscenariosPage() {
                     </button>
                   )}
 
-                  <button onClick={() => handleOptimize(sel.id)} disabled={isProcessing} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, cursor: isProcessing ? 'not-allowed' : 'pointer', fontSize: 13.5, fontWeight: 600, color: '#8b5cf6', fontFamily: 'inherit', textAlign: 'left', opacity: isProcessing ? 0.7 : 1, gridColumn: sel.status === 'simulation' ? '1/-1' : 'auto' }}>
+                  <button onClick={() => handleOptimize(sel.id)} disabled={isProcessing} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, cursor: isProcessing ? 'not-allowed' : 'pointer', fontSize: 13.5, fontWeight: 600, color: '#8b5cf6', fontFamily: 'inherit', textAlign: 'left', opacity: isProcessing ? 0.7 : 1 }}>
                     <div style={{ padding: 8, background: '#f5f3ff', borderRadius: 9 }}><Zap style={{ width: 15, height: 15, color: '#8b5cf6' }} /></div>
                     <div>
                       <div>Re-optimizar (IA)</div>
-                      {sel.status === 'simulation' && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Las simulaciones se generan y actualizan automáticamente por el motor CSP.</div>}
+                      {sel.status === 'simulation' && <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Las simulaciones se actualizan por el motor CSP.</div>}
+                    </div>
+                  </button>
+
+                  <button onClick={() => handleViewSchedule(sel.id)} disabled={isProcessing} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#f59e0b', fontFamily: 'inherit', textAlign: 'left', opacity: isProcessing ? 0.7 : 1 }}>
+                    <div style={{ padding: 8, background: '#fffbeb', borderRadius: 9 }}><Calendar style={{ width: 15, height: 15, color: '#f59e0b' }} /></div>
+                    <div>
+                      <div>Visualizar Horario</div>
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Ver el resultado generado.</div>
                     </div>
                   </button>
 
@@ -281,6 +314,92 @@ export default function EscenariosPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
               <button onClick={() => setModal(false)} disabled={isProcessing} style={{ padding: '9px 18px', border: '1.5px solid #e2e8f0', borderRadius: 10, background: 'white', fontSize: 13.5, fontWeight: 600, color: '#475569', cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
               <button onClick={handleCreate} disabled={isProcessing || !newName.trim()} style={{ padding: '9px 18px', background: '#0f172a', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit', opacity: (isProcessing || !newName.trim()) ? 0.7 : 1 }}>{isProcessing ? 'Creando...' : 'Crear Escenario'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Viewer Modal */}
+      {scheduleModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(5px)' }}>
+          <div style={{ background: '#f8fafc', width: '100%', maxWidth: 1100, borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.2)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Visualizador de Horario</h2>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>{sel?.name}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 10 }}>
+                  <button onClick={() => setScheduleViewBy('teacher')} style={{ padding: '6px 14px', border: 'none', background: scheduleViewBy === 'teacher' ? 'white' : 'transparent', color: scheduleViewBy === 'teacher' ? '#0f172a' : '#64748b', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, boxShadow: scheduleViewBy === 'teacher' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
+                    <Users style={{ width: 14, height: 14 }} /> Docentes
+                  </button>
+                  <button onClick={() => setScheduleViewBy('room')} style={{ padding: '6px 14px', border: 'none', background: scheduleViewBy === 'room' ? 'white' : 'transparent', color: scheduleViewBy === 'room' ? '#0f172a' : '#64748b', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, boxShadow: scheduleViewBy === 'room' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
+                    <Home style={{ width: 14, height: 14 }} /> Aulas
+                  </button>
+                </div>
+                <button onClick={() => setScheduleModal(false)} style={{ padding: 8, border: 'none', background: '#f1f5f9', borderRadius: 10, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X style={{ width: 16, height: 16 }} /></button>
+              </div>
+            </div>
+            
+            <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
+              {loadingSchedule ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontWeight: 600 }}>Cargando horario...</div>
+              ) : scheduleData.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontWeight: 600 }}>Este escenario no tiene sesiones asignadas aún.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
+                  {/* Agrupar los datos por Docente o por Aula */}
+                  {Array.from(new Set(scheduleData.map(s => scheduleViewBy === 'teacher' ? s.teacherName : s.roomName))).sort().map(entityName => {
+                    const sessions = scheduleData.filter(s => (scheduleViewBy === 'teacher' ? s.teacherName : s.roomName) === entityName);
+                    
+                    return (
+                      <div key={entityName} style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                        <div style={{ padding: '16px 20px', background: '#0f172a', color: 'white', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {scheduleViewBy === 'teacher' ? <Users style={{ width: 16, height: 16, color: '#94a3b8' }}/> : <Home style={{ width: 16, height: 16, color: '#94a3b8' }}/>}
+                          {entityName}
+                          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.15)', padding: '4px 10px', borderRadius: 20 }}>
+                            {sessions.length} sesiones
+                          </span>
+                        </div>
+                        <div style={{ padding: 20 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(5, 1fr)', gap: 10 }}>
+                            {/* Header row */}
+                            <div></div>
+                            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(d => (
+                              <div key={d} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#475569', paddingBottom: 10 }}>{d}</div>
+                            ))}
+                            
+                            {/* Time Slots */}
+                            {[0, 1, 2, 3, 4].map(slot => (
+                              <React.Fragment key={slot}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  Bloque {slot + 1}
+                                </div>
+                                {[0, 1, 2, 3, 4].map(day => {
+                                  const s = sessions.find(x => x.day === day && x.slot === slot);
+                                  return (
+                                    <div key={`${day}-${slot}`} style={{ background: s ? '#f0fdf4' : '#f8fafc', border: `1.5px solid ${s ? '#a7f3d0' : '#f1f5f9'}`, borderRadius: 12, padding: 12, minHeight: 70, display: 'flex', flexDirection: 'column', gap: 4, transition: 'all 0.2s' }}>
+                                      {s && (
+                                        <>
+                                          <div style={{ fontSize: 12.5, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{s.courseName}</div>
+                                          <div style={{ fontSize: 11.5, fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4, marginTop: 'auto' }}>
+                                            {scheduleViewBy === 'teacher' ? <Home style={{ width: 11, height: 11 }} /> : <Users style={{ width: 11, height: 11 }} />}
+                                            {scheduleViewBy === 'teacher' ? s.roomName : s.teacherName}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

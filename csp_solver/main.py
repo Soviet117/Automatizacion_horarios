@@ -20,6 +20,7 @@ class CohortClass(BaseModel):
     cohort_id: str
     required_hours: int
     students_count: int
+    teacher_id: str
 
 class Room(BaseModel):
     id: str
@@ -70,27 +71,36 @@ def optimize_schedule(req: OptimizationRequest):
         max_cap = max((r.capacity for r in req.rooms), default=0)
 
         assign = {}
+        unresolvable = []
+
+        # Convert teachers to dict for quick access
+        teachers_dict = {t.id: t for t in req.teachers}
+
         for c in req.classes:
-            eligible_teachers = [t for t in req.teachers if c.course_id in t.competencies]
-            if not eligible_teachers:
-                # Fallback: any teacher
-                eligible_teachers = list(req.teachers)
+            t = teachers_dict.get(c.teacher_id)
+            if not t:
+                unresolvable.append(c.course_id)
+                continue
 
             eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count]
             if not eligible_rooms:
-                # Fallback: largest room
                 eligible_rooms = [r for r in req.rooms if r.capacity == max_cap]
 
-            for t in eligible_teachers:
-                for r in eligible_rooms:
-                    for d in range(req.days):
-                        for s in range(req.slots_per_day):
-                            if (d, s) in teacher_avail[t.id]:
-                                key = (c.id, t.id, r.id, d, s)
-                                # PascalCase API for older OR-Tools versions
-                                assign[key] = model.NewBoolVar(
-                                    f"a_{c.id[:6]}_{t.id[:6]}_{r.id[:6]}_{d}_{s}"
-                                )
+            for r in eligible_rooms:
+                for d in range(req.days):
+                    for s in range(req.slots_per_day):
+                        if (d, s) in teacher_avail[t.id]:
+                            key = (c.id, t.id, r.id, d, s)
+                            assign[key] = model.NewBoolVar(
+                                f"a_{c.id[:6]}_{t.id[:6]}_{r.id[:6]}_{d}_{s}"
+                            )
+
+        if unresolvable:
+            return {
+                "status": "INFEASIBLE",
+                "sessions": [],
+                "message": f"Los siguientes cursos tienen un docente asignado que no existe o no se envió al solver: {', '.join(set(unresolvable))}."
+            }
 
         if not assign:
             return {"status": "INFEASIBLE", "sessions": [],

@@ -13,7 +13,16 @@ export class SchedulerService {
    * Recopila los datos de la base de datos y los envía al solucionador CSP en Python.
    */
   static async optimizeSchedule(userId: string, id_escenario?: string) {
-    // 1. Obtener datos crudos de Prisma
+    // 0. Obtener periodo activo para filtrar solo asignaciones relevantes
+    const periodoActivo = await prisma.periodo_academico.findFirst({
+      where: { activo: true }
+    });
+
+    if (!periodoActivo) {
+      throw new Error('No hay un periodo académico activo. Activa uno antes de generar horarios.');
+    }
+
+    // 1. Obtener datos crudos de Prisma (solo del periodo activo)
     const [docentesDB, aulasDB, asignacionesDB] = await Promise.all([
       prisma.docente.findMany({
         include: {
@@ -23,6 +32,7 @@ export class SchedulerService {
       }),
       prisma.aula.findMany(),
       prisma.asignacion.findMany({
+        where: { id_periodo: periodoActivo.id_periodo },
         include: {
           curso: true,
           periodo: true
@@ -33,6 +43,8 @@ export class SchedulerService {
     if (docentesDB.length === 0 || aulasDB.length === 0 || asignacionesDB.length === 0) {
       throw new Error('Faltan datos maestros (Docentes, Aulas o Asignaciones) para generar el horario.');
     }
+
+    console.log(`[Scheduler] Periodo activo: ${periodoActivo.id_periodo}, Asignaciones a resolver: ${asignacionesDB.length}`);
 
     // 2. Transformar al formato del Microservicio Python (OptimizationRequest)
     const teachers = docentesDB.map(d => ({
@@ -53,9 +65,10 @@ export class SchedulerService {
     const classes = asignacionesDB.map(a => ({
       id: a.id_asignacion,
       course_id: a.id_curso,
-      cohort_id: 'default', // Para el solver
+      cohort_id: `${a.curso.id_carrera}-${a.curso.id_ciclo}`, // Agrupar por carrera y ciclo para concurrencia real
       required_hours: (a.curso.horas_teoricas || 0) + (a.curso.horas_practicas || 0) || 4,
-      students_count: a.curso.alumnos || 30
+      students_count: a.curso.alumnos || 30,
+      teacher_id: a.id_docente
     }));
 
     const payload: OptimizationRequest = {
@@ -122,8 +135,6 @@ export class SchedulerService {
       }
 
       // Crear las nuevas sesiones asignadas por el solucionador
-      // IMPORTANT: id_usuario is optional (String?) — only set it if userId is a real UUID
-      // to avoid foreign key violations. The session belongs to the escenario, not the user.
       const newSessions = sessions.map((s: any) => ({
         id_horario: crypto.randomUUID(),
         id_asignacion: s.class_id,
@@ -131,9 +142,9 @@ export class SchedulerService {
         id_aula: s.room_id,
         id_dia: s.day,
         id_bloque: s.slot,
-        id_periodo: asignacionesDB.find(a => a.id_asignacion === s.class_id)?.id_periodo ?? 'Actual',
-        tipo_sesion: 'Teórica',
-        id_usuario: null, // nullable — evita FK violation cuando no hay userId real
+        id_periodo: periodoActivo.id_periodo,
+        tipo_sesion: asignacionesDB.find(a => a.id_asignacion === s.class_id)?.curso?.tipo_curso ?? 'Teórica',
+        id_usuario: null,
         id_escenario: targetEscenarioId
       }));
 
