@@ -8,6 +8,15 @@ interface OptimizationRequest {
   slots_per_day: number;
 }
 
+interface CompetenciaDocente {
+  id_curso: string;
+}
+
+interface DocenteWithCompetencias {
+  id_docente: string;
+  competencia_docente: CompetenciaDocente[];
+}
+
 export class SchedulerService {
   /**
    * Recopila los datos de la base de datos y los envía al solucionador CSP en Python.
@@ -71,6 +80,9 @@ export class SchedulerService {
       teacher_id: a.id_docente
     }));
 
+    // 3. Validar competencias antes de enviar al solver
+    SchedulerService.validateAssignmentCompetencies(docentesDB, asignacionesDB);
+
     const payload: OptimizationRequest = {
       teachers,
       rooms,
@@ -79,7 +91,7 @@ export class SchedulerService {
       slots_per_day: 5
     };
 
-    // 3. Llamar al Microservicio
+    // 4. Llamar al Microservicio
     console.log('Enviando datos al motor CSP (OR-Tools)...');
     const cspUrl = process.env.CSP_SOLVER_URL || 'http://localhost:8000';
     let response;
@@ -160,5 +172,38 @@ export class SchedulerService {
       total_sessions_assigned: sessions.length,
       escenario_id: targetEscenarioId
     };
+  }
+
+  /**
+   * Valida que cada docente tenga la competencia del curso al que fue asignado.
+   * Lanza un error descriptivo si se detectan violaciones.
+   */
+  static validateAssignmentCompetencies(
+    docentesDB: DocenteWithCompetencias[],
+    asignacionesDB: any[]
+  ): void {
+    const teacherCompetencies = new Map(
+      docentesDB.map(d => [
+        d.id_docente,
+        new Set(d.competencia_docente.map(c => c.id_curso))
+      ])
+    );
+
+    const violations: string[] = [];
+
+    for (const a of asignacionesDB) {
+      const comps = teacherCompetencies.get(a.id_docente);
+      if (!comps || !comps.has(a.id_curso)) {
+        violations.push(
+          `Docente "${a.id_docente}" no tiene competencia para el curso "${a.id_curso}"`
+        );
+      }
+    }
+
+    if (violations.length > 0) {
+      throw new Error(
+        `Violaciones de competencias docentes:\n${violations.join('\n')}`
+      );
+    }
   }
 }

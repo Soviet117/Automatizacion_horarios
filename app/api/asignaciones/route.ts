@@ -56,6 +56,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'El docente ya está asignado a este curso en el periodo actual' }, { status: 400 });
     }
 
+    // Check teacher has competency for this course
+    const competency = await prisma.competencia_docente.findFirst({
+      where: { id_docente, id_curso }
+    });
+
+    if (!competency) {
+      return NextResponse.json({ error: 'El docente no tiene la competencia requerida para este curso' }, { status: 400 });
+    }
+
     const asignacion = await prisma.asignacion.create({
       data: {
         id_asignacion: `ASG-${crypto.randomUUID().substring(0, 8)}`,

@@ -81,6 +81,9 @@ def optimize_schedule(req: OptimizationRequest):
             if not t:
                 unresolvable.append(c.course_id)
                 continue
+            if c.course_id not in t.competencies:
+                unresolvable.append(c.course_id)
+                continue
 
             eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count]
             if not eligible_rooms:
@@ -99,7 +102,7 @@ def optimize_schedule(req: OptimizationRequest):
             return {
                 "status": "INFEASIBLE",
                 "sessions": [],
-                "message": f"Los siguientes cursos tienen un docente asignado que no existe o no se envió al solver: {', '.join(set(unresolvable))}."
+                "message": f"No se pueden asignar los siguientes cursos: {', '.join(set(unresolvable))}. Verifica que tengan un docente con la competencia habilitada."
             }
 
         if not assign:
