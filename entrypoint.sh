@@ -1,7 +1,27 @@
-# entrypoint.sh - Se ejecuta antes de iniciar la app
+#!/bin/sh
+set -e
 
-# Ejecutar migraciones de Prisma
+echo "=== Inicializando el sistema ==="
+
+npx prisma generate
+
 npx prisma migrate deploy
 
-# Iniciar la aplicación
-node server.js
+echo "Verificando si es primera ejecucion..."
+COUNT=$(node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+p.facultad.count().then(c => { console.log(c); p.\$disconnect(); }).catch(() => { console.log('0'); p.\$disconnect(); });
+")
+
+if [ "$COUNT" = "0" ]; then
+  echo "Primera ejecucion detectada - ejecutando seed..."
+  npx prisma db seed
+  echo "Seed completado."
+else
+  echo "Seed ya ejecutado previamente, saltando."
+fi
+
+echo "=== Inicio completado ==="
+
+exec "$@"
