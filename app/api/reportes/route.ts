@@ -11,7 +11,6 @@ export async function GET(request: Request) {
     }
 
     // 1. KPI Resumen
-    const totalAulas = await prisma.aula.count();
     const totalMaterias = await prisma.curso.count();
 
     // Total horas asignadas (cada bloque cuenta como 1 hora o sesión)
@@ -84,12 +83,12 @@ export async function GET(request: Request) {
       return {
         name: `${d.nom_docente.split(' ')[0]} ${d.ape_docente.split(' ')[0]}`,
         assigned: assigned,
-        max: 40 // Valor por defecto
+        max: 25 // 5 bloques × 5 días
       }
     }).filter(d => d.assigned > 0).sort((a, b) => b.assigned - a.assigned).slice(0, 10);
 
     if (teacherLoadData.length === 0) {
-      teacherLoadData.push({ name: 'Sin datos', assigned: 0, max: 40 });
+      teacherLoadData.push({ name: 'Sin datos', assigned: 0, max: 25 });
     }
 
     // 5. Ocupación Semanal
@@ -115,19 +114,35 @@ export async function GET(request: Request) {
 
     // Stats
     const totalDocentesConCarga = teacherLoadData.filter(t => t.name !== 'Sin datos').length;
-    const utilizacionMedia = roomUsageData.filter(r => r.name !== 'Sin datos').length > 0
-      ? Math.round(roomUsageData.reduce((acc, curr) => acc + curr.usage, 0) / roomUsageData.filter(r => r.name !== 'Sin datos').length)
+
+    // Utilización media: promedio de TODAS las aulas (no solo top 10)
+    const todasAulas = await prisma.aula.findMany({
+      include: {
+        horario_sesion: {
+          where: { id_periodo: periodo, id_escenario: null },
+        }
+      }
+    });
+    const utilizacionMedia = todasAulas.length > 0
+      ? Math.round(
+          todasAulas.reduce((acc, a) => acc + Math.min((a.horario_sesion.length / maxBloquesSemana) * 100, 100), 0)
+          / todasAulas.length
+        )
       : 0;
 
     const cargaDocenteMedia = totalDocentesConCarga > 0
       ? Math.round(teacherLoadData.reduce((acc, curr) => acc + curr.assigned, 0) / totalDocentesConCarga)
       : 0;
 
-    // Estimamos cobertura basándonos en si hay sesiones
-    let materiasCubiertos = 0;
-    if (totalMaterias > 0) {
-      materiasCubiertos = totalSesiones > 0 ? Math.min(Math.round((totalSesiones / (totalMaterias * 3)) * 100), 100) : 0;
-    }
+    // Cobertura real: materias que tienen al menos una asignación en el período
+    const asignacionesPeriodo = await prisma.asignacion.findMany({
+      where: { id_periodo: periodo },
+      select: { id_curso: true }
+    });
+    const cursosConAsignacion = new Set(asignacionesPeriodo.map(a => a.id_curso)).size;
+    const materiasCubiertos = totalMaterias > 0
+      ? Math.min(Math.round((cursosConAsignacion / totalMaterias) * 100), 100)
+      : 0;
 
     const stats = {
       utilizacionMedia,

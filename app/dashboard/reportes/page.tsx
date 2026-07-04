@@ -77,10 +77,10 @@ export default function ReportesPage() {
     <div className="flex flex-col gap-6 max-w-7xl mx-auto print-area" ref={reportRef}>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white rounded-2xl shadow-sm border border-slate-200 reporte-card">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Reportes y Analíticas</h1>
-          <p className="text-sm text-slate-500 mt-1">Métricas de uso de infraestructura, carga docente y distribución académica.</p>
+          <p className="text-sm text-slate-500" style={{ marginTop: '6px' }}>Métricas de uso de infraestructura, carga docente y distribución académica.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative no-print">
@@ -114,21 +114,21 @@ export default function ReportesPage() {
       ) : (
         <>
           {/* Summary KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 grid-kpi">
             {[
               { label: 'Utilización Media de Aulas', value: `${stats.utilizacionMedia || 0}%`, trend: 'Semestre Actual', icon: Building2, color: 'text-blue-600', bg: 'bg-blue-50' },
               { label: 'Carga Docente Promedio', value: `${stats.cargaDocenteMedia || 0}h`, trend: 'Semestre Actual', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-              { label: 'Materias Cubiertos', value: `${stats.materiasCubiertos || 0}%`, trend: 'Estimado', icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-50' },
+              { label: 'Materias Cubiertos', value: `${stats.materiasCubiertos || 0}%`, trend: 'Cobertura real', icon: BookOpen, color: 'text-purple-600', bg: 'bg-purple-50' },
               { label: 'Sesiones Asignadas', value: `${stats.horasAsignadas || 0}`, trend: 'Bloques de tiempo', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
             ].map(kpi => {
               const Icon = kpi.icon;
               return (
-                <div key={kpi.label} className="bg-white border border-slate-200 rounded-2xl p-4 hover:shadow-md transition-all">
-                  <div className={`p-2 ${kpi.bg} rounded-xl inline-block mb-3`}><Icon className={`h-5 w-5 ${kpi.color}`} /></div>
-                  <div className="text-2xl font-extrabold text-slate-900 mb-0.5">{kpi.value}</div>
-                  <div className="text-xs text-slate-500 mb-1">{kpi.label}</div>
+                <div key={kpi.label} className="bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-all min-w-0 reporte-kpi">
+                  <div className={`kpi-icon ${kpi.bg} rounded-xl inline-block`}><Icon className={`h-5 w-5 ${kpi.color}`} /></div>
+                  <div className="kpi-value font-extrabold text-slate-900 truncate">{kpi.value}</div>
+                  <div className="text-xs text-slate-500 truncate mb-1" title={kpi.label}>{kpi.label}</div>
                   <div className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" /> {kpi.trend}
+                    <TrendingUp className="h-3 w-3 shrink-0" /> <span className="truncate">{kpi.trend}</span>
                   </div>
                 </div>
               );
@@ -136,17 +136,17 @@ export default function ReportesPage() {
           </div>
 
           {/* Charts Row 1 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 grid-charts">
             {/* Uso de Aulas */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="font-bold text-slate-900 mb-1">Utilización de Aulas (Top 10)</h3>
-              <p className="text-xs text-slate-500 mb-4">Porcentaje de ocupación sobre 75 bloques semanales.</p>
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
+              <h3 className="font-bold text-slate-900">Utilización de Aulas (Top 10)</h3>
+              <p className="text-xs text-slate-500">Porcentaje de ocupación sobre 25 bloques semanales.</p>
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={roomUsageData} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
                     <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={110} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={130} />
                     <Tooltip formatter={(v: any) => [`${v}%`, 'Ocupación']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,.1)' }} />
                     <Bar dataKey="usage" radius={[0, 6, 6, 0]} maxBarSize={20}>
                       {roomUsageData.map((e: any, i: number) => <Cell key={i} fill={e.usage > 85 ? '#ef4444' : e.usage > 70 ? '#f59e0b' : '#10b981'} />)}
@@ -157,9 +157,9 @@ export default function ReportesPage() {
             </div>
 
             {/* Distribución por Programa */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="font-bold text-slate-900 mb-1">Distribución por Programa</h3>
-              <p className="text-xs text-slate-500 mb-4">Porcentaje de alumnos activos por carrera.</p>
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
+              <h3 className="font-bold text-slate-900">Distribución por Programa</h3>
+              <p className="text-xs text-slate-500">Porcentaje de alumnos activos por carrera.</p>
               <div className="flex items-center gap-4 h-60">
                 <div className="flex-1 h-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -185,20 +185,20 @@ export default function ReportesPage() {
           </div>
 
           {/* Charts Row 2 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 grid-charts">
             {/* Carga Docente */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="font-bold text-slate-900 mb-1">Carga Horaria Docente (Top 10)</h3>
-              <p className="text-xs text-slate-500 mb-4">Bloques asignados vs 40 bloques base.</p>
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
+              <h3 className="font-bold text-slate-900">Carga Horaria Docente (Top 10)</h3>
+              <p className="text-xs text-slate-500">Bloques asignados vs 25 bloques base.</p>
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={teacherLoadData} margin={{ left: -25, right: 10, top: 0, bottom: 0 }}>
+                  <BarChart data={teacherLoadData} margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={35} />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,.1)' }} />
                     <Legend iconType="circle" iconSize={8} />
-                    <Bar dataKey="max" fill="#e2e8f0" radius={[4, 4, 0, 0]} maxBarSize={30} name="Base 40h" />
+                    <Bar dataKey="max" fill="#e2e8f0" radius={[4, 4, 0, 0]} maxBarSize={30} name="Base 25h" />
                     <Bar dataKey="assigned" fill="#0f172a" radius={[4, 4, 0, 0]} maxBarSize={30} name="Asignado">
                       {teacherLoadData.map((e: any, i: number) => <Cell key={i} fill={e.assigned >= e.max ? '#ef4444' : '#0f172a'} />)}
                     </Bar>
@@ -208,12 +208,12 @@ export default function ReportesPage() {
             </div>
 
             {/* Tendencia semanal */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="font-bold text-slate-900 mb-1">Ocupación por Día</h3>
-              <p className="text-xs text-slate-500 mb-4">Cantidad de aulas y docentes activos por día.</p>
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
+              <h3 className="font-bold text-slate-900">Ocupación por Día</h3>
+              <p className="text-xs text-slate-500">Cantidad de aulas y docentes activos por día.</p>
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weeklyData} margin={{ left: -25, right: 10, top: 0, bottom: 0 }}>
+                  <LineChart data={weeklyData} margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
@@ -231,11 +231,46 @@ export default function ReportesPage() {
 
       {/* Estilos para ocultar el Sidebar y la UI general durante la exportación a PDF */}
       <style dangerouslySetInnerHTML={{__html: `
+        .reporte-card {
+          padding: 28px !important;
+        }
+        .reporte-card > h3 {
+          margin-bottom: 6px !important;
+        }
+        .reporte-card > p {
+          margin-bottom: 20px !important;
+        }
+        .reporte-kpi {
+          padding: 28px !important;
+        }
+        .reporte-kpi .kpi-icon {
+          margin-bottom: 16px !important;
+          padding: 10px !important;
+        }
+        .reporte-kpi .kpi-value {
+          margin-bottom: 4px !important;
+          font-size: 1.25rem;
+        }
+        @media (min-width: 640px) {
+          .reporte-kpi .kpi-value {
+            font-size: 1.5rem;
+          }
+        }
+        .grid-charts {
+          gap: 28px !important;
+        }
+        .grid-kpi {
+          gap: 20px !important;
+        }
+        @media (min-width: 640px) {
+          .grid-kpi {
+            gap: 28px !important;
+          }
+        }
         @media print {
           body * {
             visibility: hidden;
           }
-          /* Mostrar solo el contenedor del reporte */
           .print-area, .print-area * {
             visibility: visible;
           }
@@ -247,7 +282,6 @@ export default function ReportesPage() {
             padding: 0;
             margin: 0;
           }
-          /* Ocultar botones que no deberían salir en el PDF */
           .no-print {
             display: none !important;
           }
