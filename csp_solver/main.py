@@ -1,12 +1,13 @@
-import traceback
-import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from typing import List, Dict
+import json
+from typing import List, Dict, Any
 from ortools.sat.python import cp_model
 
 app = FastAPI(title="Scheduling CSP Optimization API")
+
+# Pydantic models for validation
+from pydantic import BaseModel
 
 class Teacher(BaseModel):
     id: str
@@ -47,6 +48,7 @@ class OptimizationResponse(BaseModel):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
     tb = traceback.format_exc()
     print("UNHANDLED EXCEPTION:", tb)
     return JSONResponse(
@@ -59,8 +61,20 @@ def health():
     return {"status": "ok", "version": "3.0"}
 
 @app.post("/optimize")
-def optimize_schedule(req: OptimizationRequest):
+async def optimize_schedule(request: Request):
     try:
+        # Parse and validate request
+        body = await request.json()
+
+        try:
+            req = OptimizationRequest(**body)
+        except Exception as e:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "ERROR", "message": f"Request validation failed: {str(e)}"}
+            )
+
+        # Initialize solver
         model = cp_model.CpModel()
 
         # Pre-compute teacher availability sets
@@ -150,6 +164,19 @@ def optimize_schedule(req: OptimizationRequest):
             if tvars:
                 model.Add(sum(tvars) <= t.max_hours)
 
+        # NEW CONSTRAINT 6: Professor 1:1 per period (adds new level of complexity)
+        # Map cohort_id -> teacher_id
+        cohort_teacher_map = {}
+        for c in req.classes:
+            cohort_teacher_map[c.cohort_id] = c.teacher_id
+
+        # Each professor can only be assigned ONCE per day
+        for t in req.teachers:
+            for d in range(req.days):
+                tvars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d]
+                if len(tvars) > 1:
+                    model.AddAtMostOne(tvars)
+
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = 60.0
         status_code = solver.Solve(model)
@@ -179,6 +206,7 @@ def optimize_schedule(req: OptimizationRequest):
                     "message": "El solver agotó el tiempo límite."}
 
     except Exception as e:
+        import traceback
         tb = traceback.format_exc()
         print("ERROR EN /optimize:", tb)
         return JSONResponse(
@@ -187,4 +215,5 @@ def optimize_schedule(req: OptimizationRequest):
         )
 
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
