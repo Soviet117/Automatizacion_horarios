@@ -164,18 +164,12 @@ async def optimize_schedule(request: Request):
             if tvars:
                 model.Add(sum(tvars) <= t.max_hours)
 
-        # NEW CONSTRAINT 6: Professor 1:1 per period (adds new level of complexity)
-        # Map cohort_id -> teacher_id
-        cohort_teacher_map = {}
-        for c in req.classes:
-            cohort_teacher_map[c.cohort_id] = c.teacher_id
-
-        # Each professor can only be assigned ONCE per day
+        # NEW CONSTRAINT 6: Professor 1:1 per period - CRITICAL ADDITION
+        # This ensures each professor teaches exactly ONE course per day (matching new model)
         for t in req.teachers:
             for d in range(req.days):
                 tvars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d]
-                if len(tvars) > 1:
-                    model.AddAtMostOne(tvars)
+                model.Add(sum(tvars) == 1)  # Each professor must teach exactly ONE class per day
 
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = 60.0
@@ -196,14 +190,18 @@ async def optimize_schedule(request: Request):
             return {
                 "status": "SUCCESS",
                 "sessions": sessions,
-                "message": f"Horario generado ({label}). {len(sessions)} sesiones."
+                "message": f"Horario generado ({label}). {len(sessions)} sesiones para {len(req.teachers)} profesores - One Teacher, One Course Per Day."
             }
         elif status_code == cp_model.INFEASIBLE:
             return {"status": "INFEASIBLE", "sessions": [],
-                    "message": "No existe combinación factible. Revisa disponibilidades y capacidades."}
+                    "message": "No existe combinación factible. Revisa disponibilidades y capacidades."
+                + " El nuevo requisito 1:1 profesor por día puede causar este error si hay profesores sin disponibilidad suficiente."
+            }
         else:
             return {"status": "TIMEOUT", "sessions": [],
-                    "message": "El solver agotó el tiempo límite."}
+                    "message": "El solver agotó el tiempo límite."
+                + " Prueba reduciendo el tiempo de búsqueda o número de clases."
+            }
 
     except Exception as e:
         import traceback
