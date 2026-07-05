@@ -142,6 +142,7 @@ model asignacion {
   horario_sesion horario_sesion[]
 
   @@unique([id_docente, id_curso, id_periodo], map: "asignacion_uq")
+  @@unique([id_docente, id_periodo], map: "asignacion_profesor_periodo_uq")
   @@index([id_docente])
   @@index([id_curso])
   @@index([id_periodo])

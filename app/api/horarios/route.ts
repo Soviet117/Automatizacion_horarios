@@ -60,45 +60,55 @@ export async function GET(request: Request) {
       where: { estado: 'published', creado_por: userId || undefined }
     });
 
-    const whereClause: any = userId ? { id_usuario: userId } : {};
-    if (publishedEscenario) {
-      whereClause.id_escenario = publishedEscenario.id_escenario;
-    } else {
-      whereClause.id_escenario = null;
-    }
+  const periodo = await prisma.periodo_academico.findFirst({
+    where: { activo: true }
+  });
 
-    const sessions = await prisma.horario_sesion.findMany({
-      where: whereClause,
-      include: {
-        asignacion: {
-          include: {
-            curso: {
-              include: {
-                carrera: true,
-                ciclo: true,
-              }
-            },
-            docente: {
-              include: {
-                disponibilidad_docente: true
-              }
+  const whereClause: any = {
+    id_usuario: userId,
+    ...(periodo ? { id_periodo: periodo.id_periodo } : {})
+  };
+
+  if (publishedEscenario) {
+    whereClause.id_escenario = publishedEscenario.id_escenario;
+  } else {
+    whereClause.id_escenario = null;
+  }
+
+  const sessions = await prisma.horario_sesion.findMany({
+    where: whereClause,
+    include: {
+      asignacion: {
+        include: {
+          curso: {
+            include: {
+              carrera: true,
+              ciclo: true,
             }
-          }
-        },
-        aula: {
-          include: {
-            tipo_aula: true
-          }
-        },
-        docente: {
-          include: {
-            disponibilidad_docente: true
-          }
-        },
-        dia_semana: true,
-        bloque_horario: true,
-      }
-    });
+          },
+          docente: {
+            include: {
+              disponibilidad_docente: true
+            }
+          },
+          periodo: true
+        }
+      },
+      aula: {
+        include: {
+          tipo_aula: true
+        }
+      },
+      docente: {
+        include: {
+          disponibilidad_docente: true
+        }
+      },
+      dia_semana: true,
+      bloque_horario: true,
+      periodo: true
+    }
+  });
 
     const formatted = sessions.map(s => {
       const curso = s.asignacion?.curso;

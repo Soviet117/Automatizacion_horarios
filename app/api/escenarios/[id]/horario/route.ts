@@ -5,18 +5,28 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const { id } = params;
 
+    const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+    if (!periodo) {
+      return NextResponse.json({ error: 'No hay periodo académico activo' }, { status: 400 });
+    }
+
     const sesiones = await prisma.horario_sesion.findMany({
-      where: { id_escenario: id },
+      where: {
+        id_escenario: id,
+        asignacion: { id_periodo: periodo.id_periodo }
+      },
       include: {
         asignacion: {
           include: {
-            curso: true
+            curso: true,
+            periodo: true
           }
         },
         docente: true,
         aula: true,
         dia_semana: true,
-        bloque_horario: true
+        bloque_horario: true,
+        periodo: true
       },
       orderBy: [
         { id_dia: 'asc' },
@@ -36,7 +46,15 @@ export async function GET(request: Request, { params }: { params: { id: string }
       teacherId: s.id_docente,
       roomName: s.aula.nom_aula,
       roomId: s.id_aula,
-      type: s.tipo_sesion
+      type: s.tipo_sesion,
+      id_periodo: s.asignacion.periodo.id_periodo,
+      nombre_periodo: s.asignacion.periodo.nom_periodo,
+      id_curso: s.asignacion.id_curso,
+      id_asignacion: s.asignacion.id_asignacion,
+      id_docente: s.id_docente,
+      id_aula: s.id_aula,
+      id_dia: s.id_dia,
+      id_bloque: s.id_bloque
     }));
 
     return NextResponse.json(schedule);

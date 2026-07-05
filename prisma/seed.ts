@@ -193,34 +193,54 @@ async function main() {
     }
   });
 
-  // 7. Asignaciones: elegir docente competente para cada curso
-  console.log('Generando asignaciones coherentes (docente con competencia)...');
+      // 7. Asignaciones: elegir docente competente para cada curso
+      console.log('Generando asignaciones coherentes (docente con competencia)...');
 
-  let idAsignacionCounter = 1;
-  let idHorarioCounter = 1;
+      let idAsignacionCounter = 1;
+      let idHorarioCounter = 1;
 
-  // Reconstruir mapa competencias en memoria para usarlo al elegir docente
-  const competencias = await prisma.competencia_docente.findMany();
-  const docentesPorCurso: Record<string, string[]> = {};
-  for (const c of competencias) {
-    if (!docentesPorCurso[c.id_curso]) docentesPorCurso[c.id_curso] = [];
-    docentesPorCurso[c.id_curso].push(c.id_docente);
-  }
+      // Reconstruir mapa competencias en memoria para usarlo al elegir docente
+      const competencias = await prisma.competencia_docente.findMany();
+      const docentesPorCurso: Record<string, string[]> = {};
+      for (const c of competencias) {
+        if (!docentesPorCurso[c.id_curso]) docentesPorCurso[c.id_curso] = [];
+        docentesPorCurso[c.id_curso].push(c.id_docente);
+      }
 
-  for (const curso of cursos) {
-    // Elegir un docente competente para el curso
-    const docentesHabilitados = docentesPorCurso[curso.id_curso] ?? [];
-    if (docentesHabilitados.length === 0) {
-      console.warn(`  WARN: Curso ${curso.id_curso} sin docente habilitado, se omite asignación.`);
-      continue;
-    }
-    const idDocenteElegido = docentesHabilitados[Math.floor(Math.random() * docentesHabilitados.length)];
-    const docente = docentes.find(d => d.id_docente === idDocenteElegido)!;
-    
-    // Crear asignación
-    const asignacion = await prisma.asignacion.create({
-      data: {
-        id_asignacion: `ASG-${idAsignacionCounter++}`,
+      // Nueva lógica: asignar exactamente 1 curso por profesor por período
+      const docentes = await prisma.docente.findMany();
+      const cursosAsignados: Record<string, string> = {};
+      
+      // Distribuir cursos a profesores
+      for (const curso of cursos) {
+        const docentesHabilitados = docentesPorCurso[curso.id_curso] ?? [];
+        if (docentesHabilitados.length === 0) {
+          console.warn(`  WARN: Curso ${curso.id_curso} sin docente habilitado, se omite asignación.`);
+          continue;
+        }
+        
+        // Escoger un docente que NO tenga aún un curso asignado este período
+        let docenteElegido = null;
+        const candidatos = docentesHabilitados.filter(id_docente => {
+          const yaAsignado = Object.entries(cursosAsignados).find(([_, cCurso]) => cCurso === id_docente);
+          return !yaAsignado;
+        });
+        
+        if (candidatos.length > 0) {
+          docenteElegido = candidatos[Math.floor(Math.random() * candidatos.length)];
+        } else {
+          // Si todos ya tienen un curso, usar el primero disponible
+          docenteElegido = docentesHabilitados[0];
+        }
+        
+        if (docenteElegido) {
+          cursosAsignados[curso.id_curso] = docenteElegido;
+          const docente = docentes.find(d => d.id_docente === docenteElegido)!;
+          
+          // Crear asignación
+          const asignacion = await prisma.asignacion.create({
+            data: {
+              id_asignacion: `ASG-${idAsignacionCounter++}`,
         id_docente: docente.id_docente,
         id_curso: curso.id_curso,
         id_periodo: periodo1.id_periodo
