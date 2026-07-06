@@ -97,6 +97,39 @@ export default function RecursosPage() {
     });
   };
 
+  const toggleRow = (slot: number) => {
+    setTempAvail(prev => {
+      const allOn = DAYS.every((_, di) => prev[di]?.includes(slot));
+      if (allOn) {
+        const next = { ...prev };
+        DAYS.forEach((_, di) => {
+          next[di] = (next[di] ?? []).filter(s => s !== slot);
+        });
+        return next;
+      } else {
+        const next = { ...prev };
+        DAYS.forEach((_, di) => {
+          const d = new Set(next[di] ?? []);
+          d.add(slot);
+          next[di] = [...d];
+        });
+        return next;
+      }
+    });
+  };
+
+  const toggleCol = (day: number) => {
+    setTempAvail(prev => {
+      const cur = new Set(prev[day] ?? []);
+      const allOn = SLOTS.every((_, si) => cur.has(si));
+      if (allOn) {
+        return { ...prev, [day]: [] };
+      } else {
+        return { ...prev, [day]: SLOTS.map((_, si) => si) };
+      }
+    });
+  };
+
   const toggleComp = (id: string) =>
     setTempComp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -261,6 +294,7 @@ export default function RecursosPage() {
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                         <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Horario</th>
                         {DAYS.map(d => <th key={d} style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{d.slice(0, 3)}</th>)}
+                        <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: 36 }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -278,8 +312,31 @@ export default function RecursosPage() {
                               </td>
                             );
                           })}
+                          <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                            <button type="button" onClick={() => toggleRow(si)}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 12, background: 'white', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}
+                              title="Seleccionar / deseleccionar toda la fila">
+                              ⤓
+                            </button>
+                          </td>
                         </tr>
                       ))}
+                      <tr>
+                        <td style={{ padding: '6px 14px' }}></td>
+                        {DAYS.map((_, di) => {
+                          const allOn = SLOTS.every((_, si) => tempAvail[di]?.includes(si));
+                          return (
+                            <td key={di} style={{ padding: '6px 8px', textAlign: 'center' }}>
+                              <button type="button" onClick={() => toggleCol(di)}
+                                style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 12, background: allOn ? '#10b981' : 'white', color: allOn ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}
+                                title="Seleccionar / deseleccionar toda la columna">
+                                ⤓
+                              </button>
+                            </td>
+                          );
+                        })}
+                        <td style={{ padding: '6px 4px' }}></td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
