@@ -11,6 +11,19 @@ type ScenarioStatus = 'published' | 'draft' | 'simulation';
 interface Scenario {
   id: string; name: string; status: ScenarioStatus; createdAt: string;
   createdBy: string; conflicts: number; coverage: number; description: string;
+  ciclo: { id: number; name: string } | null;
+  plan: { id: string; name: string } | null;
+}
+
+interface PlanOption {
+  id_plan: string;
+  nom_plan: string;
+  id_carrera: string;
+}
+
+interface CicloOption {
+  id_ciclo: number;
+  nom_ciclo: string;
 }
 
 const STATUS_CFG = {
@@ -37,10 +50,44 @@ export default function EscenariosPage() {
   const [newDesc, setNewDesc] = useState('');
   const [newType, setNewType] = useState('draft');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [planes, setPlanes] = useState<PlanOption[]>([]);
+  const [ciclos, setCiclos] = useState<CicloOption[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [selectedCicloId, setSelectedCicloId] = useState<number | ''>('');
+  const [ciclosLoading, setCiclosLoading] = useState(false);
 
   useEffect(() => {
     loadData();
+    fetchPlanes();
   }, []);
+
+  const fetchPlanes = async () => {
+    try {
+      const res = await fetch('/api/maestros');
+      const data = await res.json();
+      setPlanes(data.planesEstudio || []);
+    } catch (e) {
+      console.error('Error fetching planes:', e);
+    }
+  };
+
+  const fetchCiclosByPlan = async (id_plan: string) => {
+    if (!id_plan) {
+      setCiclos([]);
+      return;
+    }
+    setCiclosLoading(true);
+    try {
+      const res = await fetch(`/api/ciclos-por-plan?id_plan=${id_plan}`);
+      const data = await res.json();
+      setCiclos(data || []);
+    } catch (e) {
+      console.error('Error fetching ciclos:', e);
+      setCiclos([]);
+    } finally {
+      setCiclosLoading(false);
+    }
+  };
 
   const loadData = async () => {
     const data = await getEscenarios();
@@ -51,15 +98,24 @@ export default function EscenariosPage() {
   };
 
   const handleCreate = async () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || !selectedPlanId || selectedCicloId === '') return;
     setIsProcessing(true);
     try {
-      const nuevo = await createEscenario({ name: newName, description: newDesc, type: newType });
+      const nuevo = await createEscenario({
+        name: newName,
+        description: newDesc,
+        type: newType,
+        id_ciclo: selectedCicloId as number,
+        id_plan: selectedPlanId,
+      });
       await loadData();
       setSelected(nuevo.id_escenario);
       setModal(false);
       setNewName('');
       setNewDesc('');
+      setSelectedPlanId('');
+      setSelectedCicloId('');
+      setCiclos([]);
     } catch (e) {
       console.error(e);
       alert('Error creando escenario');
@@ -106,9 +162,14 @@ export default function EscenariosPage() {
   const handleOptimize = async (id: string) => {
     setIsProcessing(true);
     try {
-      await runOptimizationForEscenario(id);
+      const result = await runOptimizationForEscenario(id);
       await loadData();
-      alert('Horario generado y guardado en este escenario exitosamente.');
+      const cov = (result as any)?.coverage;
+      if (cov !== undefined && cov < 100) {
+        alert(`Horario generado con cobertura parcial (${cov}%). Hay sesiones sin asignar. Revisa el horario y ajusta manualmente si es necesario.`);
+      } else {
+        alert('Horario generado y guardado en este escenario exitosamente.');
+      }
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -202,7 +263,17 @@ export default function EscenariosPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                 <div>
                   <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{sel.name}</div>
-                  <div style={{ fontSize: 13.5, color: '#64748b' }}>{sel.description}</div>
+                  <div style={{ fontSize: 13.5, color: '#64748b', marginBottom: 4 }}>{sel.description}</div>
+                  {sel.plan && sel.ciclo && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#0369a1' }}>
+                        {sel.plan.name}
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#15803d' }}>
+                        {sel.ciclo.name}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.border}`, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                   <CfgIcon style={{ width: 14, height: 14 }} />{cfg.label}
@@ -292,6 +363,46 @@ export default function EscenariosPage() {
             </div>
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  Plan de Estudio <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select value={selectedPlanId} onChange={e => {
+                  const planId = e.target.value;
+                  setSelectedPlanId(planId);
+                  setSelectedCicloId('');
+                  setCiclos([]);
+                  if (planId) fetchCiclosByPlan(planId);
+                }} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 14, background: 'white', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}>
+                  <option value="">Seleccionar plan de estudio...</option>
+                  {planes.map(p => (
+                    <option key={p.id_plan} value={p.id_plan}>{p.nom_plan}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+                  Ciclo <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select value={selectedCicloId} onChange={e => setSelectedCicloId(e.target.value ? Number(e.target.value) : '')}
+                  disabled={!selectedPlanId || ciclosLoading}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 14, background: 'white', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', opacity: !selectedPlanId ? 0.5 : 1 }}>
+                  {!selectedPlanId ? (
+                    <option value="">Primero selecciona un plan</option>
+                  ) : ciclosLoading ? (
+                    <option value="">Cargando ciclos...</option>
+                  ) : ciclos.length === 0 ? (
+                    <option value="">No hay ciclos disponibles para este plan</option>
+                  ) : (
+                    <>
+                      <option value="">Seleccionar ciclo...</option>
+                      {ciclos.map(c => (
+                        <option key={c.id_ciclo} value={c.id_ciclo}>{c.nom_ciclo}</option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+              <div>
                 <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Nombre del Escenario</label>
                 <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej. Semestre 2026-II Borrador" style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 14, color: '#0f172a', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
               </div>
@@ -313,7 +424,7 @@ export default function EscenariosPage() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
               <button onClick={() => setModal(false)} disabled={isProcessing} style={{ padding: '9px 18px', border: '1.5px solid #e2e8f0', borderRadius: 10, background: 'white', fontSize: 13.5, fontWeight: 600, color: '#475569', cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
-              <button onClick={handleCreate} disabled={isProcessing || !newName.trim()} style={{ padding: '9px 18px', background: '#0f172a', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit', opacity: (isProcessing || !newName.trim()) ? 0.7 : 1 }}>{isProcessing ? 'Creando...' : 'Crear Escenario'}</button>
+              <button onClick={handleCreate} disabled={isProcessing || !newName.trim() || !selectedPlanId || selectedCicloId === ''} style={{ padding: '9px 18px', background: '#0f172a', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit', opacity: (isProcessing || !newName.trim() || !selectedPlanId || selectedCicloId === '') ? 0.7 : 1 }}>{isProcessing ? 'Creando...' : 'Crear Escenario'}</button>
             </div>
           </div>
         </div>

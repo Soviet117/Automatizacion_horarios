@@ -1,12 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from ortools.sat.python import cp_model
 
 app = FastAPI(title="Scheduling CSP Optimization API")
 
-# Pydantic models for validation
 from pydantic import BaseModel
 
 class Teacher(BaseModel):
@@ -33,6 +32,7 @@ class OptimizationRequest(BaseModel):
     rooms: List[Room]
     days: int = 5
     slots_per_day: int = 5
+    relaxed: bool = False
 
 class AssignedSession(BaseModel):
     class_id: str
@@ -45,6 +45,7 @@ class OptimizationResponse(BaseModel):
     status: str
     sessions: List[AssignedSession]
     message: str = ""
+    coverage: Optional[float] = None
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -58,12 +59,133 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "3.0"}
+    return {"status": "ok", "version": "4.0"}
+
+def build_model(req: OptimizationRequest):
+    model = cp_model.CpModel()
+
+    teacher_avail: Dict[str, set] = {}
+    for t in req.teachers:
+        teacher_avail[t.id] = set((a["day"], a["slot"]) for a in t.availabilities)
+
+    max_cap = max((r.capacity for r in req.rooms), default=0)
+
+    assign = {}
+    unresolvable = []
+
+    teachers_dict = {t.id: t for t in req.teachers}
+
+    for c in req.classes:
+        t = teachers_dict.get(c.teacher_id)
+        if not t:
+            unresolvable.append(c.course_id)
+            continue
+        if c.course_id not in t.competencies:
+            unresolvable.append(c.course_id)
+            continue
+
+        eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count]
+        if not eligible_rooms:
+            eligible_rooms = [r for r in req.rooms if r.capacity == max_cap]
+
+        for r in eligible_rooms:
+            for d in range(req.days):
+                for s in range(req.slots_per_day):
+                    if (d, s) in teacher_avail[t.id]:
+                        key = (c.id, t.id, r.id, d, s)
+                        assign[key] = model.NewBoolVar(
+                            f"a_{c.id[:6]}_{t.id[:6]}_{r.id[:6]}_{d}_{s}"
+                        )
+
+    return model, assign, unresolvable, teacher_avail, teachers_dict
+
+def add_constraints(model, assign, req, relaxed):
+    # CONSTRAINT 1: Each class scheduled required_hours times
+    for c in req.classes:
+        class_vars = [v for k, v in assign.items() if k[0] == c.id]
+        if not class_vars:
+            continue
+        hours = min(c.required_hours, len(class_vars))
+        if relaxed:
+            model.Add(sum(class_vars) <= hours)
+        else:
+            model.Add(sum(class_vars) == hours)
+
+    # CONSTRAINT 2: Teacher can only be in one place per slot
+    for t in req.teachers:
+        for d in range(req.days):
+            for s in range(req.slots_per_day):
+                tvars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d and k[4] == s]
+                if len(tvars) > 1:
+                    model.AddAtMostOne(tvars)
+
+    # CONSTRAINT 3: Room can only hold one class per slot
+    for r in req.rooms:
+        for d in range(req.days):
+            for s in range(req.slots_per_day):
+                rvars = [v for k, v in assign.items() if k[2] == r.id and k[3] == d and k[4] == s]
+                if len(rvars) > 1:
+                    model.AddAtMostOne(rvars)
+
+    # CONSTRAINT 4: Cohort can't have two classes at same time
+    cohorts = set(c.cohort_id for c in req.classes)
+    for cohort_id in cohorts:
+        c_ids = [c.id for c in req.classes if c.cohort_id == cohort_id]
+        for d in range(req.days):
+            for s in range(req.slots_per_day):
+                cvars = [v for k, v in assign.items() if k[0] in c_ids and k[3] == d and k[4] == s]
+                if len(cvars) > 1:
+                    model.AddAtMostOne(cvars)
+
+    # CONSTRAINT 5: Teacher max hours
+    for t in req.teachers:
+        tvars = [v for k, v in assign.items() if k[1] == t.id]
+        if tvars:
+            model.Add(sum(tvars) <= t.max_hours)
+
+    # CONSTRAINT 6: Professor at most 1 session per day
+    # Changed from == 1 to <= 1 to allow teachers with <5 days availability
+    for t in req.teachers:
+        for d in range(req.days):
+            tvars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d]
+            if tvars:
+                model.Add(sum(tvars) <= 1)
+
+    # If relaxed mode, add objective to maximize assigned hours
+    if relaxed:
+        all_vars = list(assign.values())
+        if all_vars:
+            model.Maximize(sum(all_vars))
+
+def extract_sessions(assign, solver, req):
+    sessions = []
+    for k, v in assign.items():
+        if solver.Value(v) == 1:
+            sessions.append({
+                "class_id": k[0],
+                "teacher_id": k[1],
+                "room_id": k[2],
+                "day": k[3],
+                "slot": k[4]
+            })
+    return sessions
+
+def compute_coverage(sessions, req):
+    if not req.classes:
+        return 100.0
+    assigned_hours = {}
+    for s in sessions:
+        cid = s["class_id"]
+        assigned_hours[cid] = assigned_hours.get(cid, 0) + 1
+    total_required = sum(c.required_hours for c in req.classes)
+    total_assigned = sum(assigned_hours.values())
+    if total_required == 0:
+        return 100.0
+    return round(total_assigned / total_required * 100, 1)
 
 @app.post("/optimize")
 async def optimize_schedule(request: Request):
     try:
-        # Parse and validate request
         body = await request.json()
 
         try:
@@ -74,134 +196,65 @@ async def optimize_schedule(request: Request):
                 content={"status": "ERROR", "message": f"Request validation failed: {str(e)}"}
             )
 
-        # Initialize solver
-        model = cp_model.CpModel()
-
-        # Pre-compute teacher availability sets
-        teacher_avail: Dict[str, set] = {}
-        for t in req.teachers:
-            teacher_avail[t.id] = set((a["day"], a["slot"]) for a in t.availabilities)
-
-        max_cap = max((r.capacity for r in req.rooms), default=0)
-
-        assign = {}
-        unresolvable = []
-
-        # Convert teachers to dict for quick access
-        teachers_dict = {t.id: t for t in req.teachers}
-
-        for c in req.classes:
-            t = teachers_dict.get(c.teacher_id)
-            if not t:
-                unresolvable.append(c.course_id)
-                continue
-            if c.course_id not in t.competencies:
-                unresolvable.append(c.course_id)
-                continue
-
-            eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count]
-            if not eligible_rooms:
-                eligible_rooms = [r for r in req.rooms if r.capacity == max_cap]
-
-            for r in eligible_rooms:
-                for d in range(req.days):
-                    for s in range(req.slots_per_day):
-                        if (d, s) in teacher_avail[t.id]:
-                            key = (c.id, t.id, r.id, d, s)
-                            assign[key] = model.NewBoolVar(
-                                f"a_{c.id[:6]}_{t.id[:6]}_{r.id[:6]}_{d}_{s}"
-                            )
+        # Build model
+        model, assign, unresolvable, teacher_avail, teachers_dict = build_model(req)
 
         if unresolvable:
-            return {
-                "status": "INFEASIBLE",
-                "sessions": [],
-                "message": f"No se pueden asignar los siguientes cursos: {', '.join(set(unresolvable))}. Verifica que tengan un docente con la competencia habilitada."
-            }
+            if req.relaxed:
+                # In relaxed mode, exclude unresolvable classes and continue
+                req.classes = [c for c in req.classes if c.course_id not in unresolvable]
+                model, assign, _, _, _ = build_model(req)
+                if not assign or not req.classes:
+                    return {
+                        "status": "INFEASIBLE",
+                        "sessions": [],
+                        "message": f"Cursos sin solución: {', '.join(set(unresolvable))}",
+                        "coverage": 0.0
+                    }
+            else:
+                return {
+                    "status": "INFEASIBLE",
+                    "sessions": [],
+                    "message": f"No se pueden asignar los siguientes cursos: {', '.join(set(unresolvable))}. Verifica que tengan un docente con la competencia habilitada.",
+                    "coverage": 0.0
+                }
 
         if not assign:
             return {"status": "INFEASIBLE", "sessions": [],
-                    "message": "No hay combinaciones válidas de docente/aula/bloque."}
+                    "message": "No hay combinaciones válidas de docente/aula/bloque.",
+                    "coverage": 0.0}
 
-        # CONSTRAINT 1: Each class scheduled exactly required_hours times
-        for c in req.classes:
-            class_vars = [v for k, v in assign.items() if k[0] == c.id]
-            if not class_vars:
-                return {"status": "INFEASIBLE", "sessions": [],
-                        "message": f"Sin combinaciones para clase {c.id[:8]}"}
-            hours = min(c.required_hours, len(class_vars))
-            model.Add(sum(class_vars) == hours)
-
-        # CONSTRAINT 2: Teacher can only be in one place per slot
-        for t in req.teachers:
-            for d in range(req.days):
-                for s in range(req.slots_per_day):
-                    tvars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d and k[4] == s]
-                    if len(tvars) > 1:
-                        model.AddAtMostOne(tvars)
-
-        # CONSTRAINT 3: Room can only hold one class per slot
-        for r in req.rooms:
-            for d in range(req.days):
-                for s in range(req.slots_per_day):
-                    rvars = [v for k, v in assign.items() if k[2] == r.id and k[3] == d and k[4] == s]
-                    if len(rvars) > 1:
-                        model.AddAtMostOne(rvars)
-
-        # CONSTRAINT 4: Cohort can't have two classes at same time
-        cohorts = set(c.cohort_id for c in req.classes)
-        for cohort_id in cohorts:
-            c_ids = [c.id for c in req.classes if c.cohort_id == cohort_id]
-            for d in range(req.days):
-                for s in range(req.slots_per_day):
-                    cvars = [v for k, v in assign.items() if k[0] in c_ids and k[3] == d and k[4] == s]
-                    if len(cvars) > 1:
-                        model.AddAtMostOne(cvars)
-
-        # CONSTRAINT 5: Teacher max hours
-        for t in req.teachers:
-            tvars = [v for k, v in assign.items() if k[1] == t.id]
-            if tvars:
-                model.Add(sum(tvars) <= t.max_hours)
-
-        # NEW CONSTRAINT 6: Professor 1:1 per period - CRITICAL ADDITION
-        # This ensures each professor teaches exactly ONE course per day (matching new model)
-        for t in req.teachers:
-            for d in range(req.days):
-                tvars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d]
-                model.Add(sum(tvars) == 1)  # Each professor must teach exactly ONE class per day
+        # Add constraints
+        add_constraints(model, assign, req, req.relaxed)
 
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = 60.0
         status_code = solver.Solve(model)
 
         if status_code in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            sessions = []
-            for k, v in assign.items():
-                if solver.Value(v) == 1:
-                    sessions.append({
-                        "class_id": k[0],
-                        "teacher_id": k[1],
-                        "room_id": k[2],
-                        "day": k[3],
-                        "slot": k[4]
-                    })
+            sessions = extract_sessions(assign, solver, req)
+            coverage = compute_coverage(sessions, req)
             label = "OPTIMAL" if status_code == cp_model.OPTIMAL else "FEASIBLE"
+            status = "SUCCESS" if coverage >= 100.0 else "PARTIAL"
             return {
-                "status": "SUCCESS",
+                "status": status,
                 "sessions": sessions,
-                "message": f"Horario generado ({label}). {len(sessions)} sesiones para {len(req.teachers)} profesores - One Teacher, One Course Per Day."
+                "coverage": coverage,
+                "message": f"Horario generado ({label}). {len(sessions)} sesiones asignadas, cobertura: {coverage}%."
             }
         elif status_code == cp_model.INFEASIBLE:
-            return {"status": "INFEASIBLE", "sessions": [],
-                    "message": "No existe combinación factible. Revisa disponibilidades y capacidades."
-                + " El nuevo requisito 1:1 profesor por día puede causar este error si hay profesores sin disponibilidad suficiente."
-            }
+            if not req.relaxed:
+                return {"status": "INFEASIBLE", "sessions": [],
+                        "message": "No existe combinación factible. Revisa disponibilidades y capacidades.",
+                        "coverage": 0.0}
+            else:
+                return {"status": "INFEASIBLE", "sessions": [],
+                        "message": "No se pudo generar ningún horario incluso en modo relajado.",
+                        "coverage": 0.0}
         else:
             return {"status": "TIMEOUT", "sessions": [],
-                    "message": "El solver agotó el tiempo límite."
-                + " Prueba reduciendo el tiempo de búsqueda o número de clases."
-            }
+                    "message": "El solver agotó el tiempo límite.",
+                    "coverage": 0.0}
 
     except Exception as e:
         import traceback

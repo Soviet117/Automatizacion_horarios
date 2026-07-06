@@ -1,9 +1,7 @@
 #!/bin/sh
 
-# Configurar Bash para modo estricto
 set -e
 
-# Verificar si las herramientas necesarias están disponibles
 if ! command -v node >/dev/null 2>&1; then
     echo "ERROR: Node.js no está instalado"
     exit 1
@@ -14,13 +12,18 @@ if ! command -v npx >/dev/null 2>&1; then
     exit 1
 fi
 
-# Generar cliente Prisma
 if npx prisma generate; then
-    echo "✅ Prisma Client generado exitosamente"
+    echo "Prisma Client generado exitosamente"
 else
-    echo "❌ Error al generar Prisma Client"
+    echo "Error al generar Prisma Client"
     exit 1
 fi
 
-# Iniciar la aplicación Next.js
-exec npx next dev --port 3000
+if npx prisma migrate deploy; then
+    echo "Migraciones aplicadas exitosamente"
+else
+    echo "Error al aplicar migraciones"
+    exit 1
+fi
+
+exec "$@"

@@ -6,6 +6,7 @@ interface OptimizationRequest {
   rooms: any[];
   days: number;
   slots_per_day: number;
+  relaxed: boolean;
 }
 
 interface CompetenciaDocente {
@@ -18,11 +19,7 @@ interface DocenteWithCompetencias {
 }
 
 export class SchedulerService {
-  /**
-   * Recopila los datos de la base de datos y los envía al solucionador CSP en Python.
-   */
   static async optimizeSchedule(userId: string, id_escenario?: string) {
-    // 0. Obtener periodo activo para filtrar solo asignaciones relevantes
     const periodoActivo = await prisma.periodo_academico.findFirst({
       where: { activo: true }
     });
@@ -31,7 +28,19 @@ export class SchedulerService {
       throw new Error('No hay un periodo académico activo. Activa uno antes de generar horarios.');
     }
 
-    // 1. Obtener datos crudos de Prisma (solo del periodo activo)
+    let filtroCiclo: number | undefined;
+    let filtroPlan: string | undefined;
+    if (id_escenario) {
+      const escenario = await prisma.escenario.findUnique({
+        where: { id_escenario },
+        select: { id_ciclo: true, id_plan: true }
+      });
+      if (escenario) {
+        filtroCiclo = escenario.id_ciclo ?? undefined;
+        filtroPlan = escenario.id_plan ?? undefined;
+      }
+    }
+
     const [docentesDB, aulasDB, asignacionesDB] = await Promise.all([
       prisma.docente.findMany({
         include: {
@@ -41,7 +50,13 @@ export class SchedulerService {
       }),
       prisma.aula.findMany(),
       prisma.asignacion.findMany({
-        where: { id_periodo: periodoActivo.id_periodo },
+        where: {
+          id_periodo: periodoActivo.id_periodo,
+          curso: {
+            ...(filtroCiclo !== undefined ? { id_ciclo: filtroCiclo } : {}),
+            ...(filtroPlan !== undefined ? { id_plan: filtroPlan } : {}),
+          }
+        },
         include: {
           curso: true,
           periodo: true
@@ -55,7 +70,6 @@ export class SchedulerService {
 
     console.log(`[Scheduler] Periodo activo: ${periodoActivo.id_periodo}, Asignaciones a resolver: ${asignacionesDB.length}`);
 
-    // 2. Transformar al formato del Microservicio Python (OptimizationRequest)
     const teachers = docentesDB.map(d => ({
       id: d.id_docente,
       max_hours: 40,
@@ -74,26 +88,30 @@ export class SchedulerService {
     const classes = asignacionesDB.map(a => ({
       id: a.id_asignacion,
       course_id: a.id_curso,
-      cohort_id: `${a.curso.id_carrera}-${a.curso.id_ciclo}`, // Agrupar por carrera y ciclo para concurrencia real
+      cohort_id: `${a.curso.id_carrera}-${a.curso.id_ciclo}`,
       required_hours: (a.curso.horas_teoricas || 0) + (a.curso.horas_practicas || 0) || 4,
       students_count: a.curso.alumnos || 30,
       teacher_id: a.id_docente
     }));
 
-    // 3. Validar competencias antes de enviar al solver
     SchedulerService.validateAssignmentCompetencies(docentesDB, asignacionesDB);
 
-    const payload: OptimizationRequest = {
-      teachers,
-      rooms,
-      classes,
-      days: 5,
-      slots_per_day: 5
-    };
-
-    // 4. Llamar al Microservicio
-    console.log('Enviando datos al motor CSP (OR-Tools)...');
     const cspUrl = process.env.CSP_SOLVER_URL || 'http://localhost:8000';
+
+    // Try hard constraints first
+    let data = await SchedulerService.callSolver(cspUrl, { teachers, rooms, classes, days: 5, slots_per_day: 5, relaxed: false });
+
+    // If infeasible, retry in relaxed mode
+    if (data.status === 'INFEASIBLE') {
+      console.log('[Scheduler] Hard constraints infeasible, retrying in relaxed mode...');
+      data = await SchedulerService.callSolver(cspUrl, { teachers, rooms, classes, days: 5, slots_per_day: 5, relaxed: true });
+    }
+
+    return await SchedulerService.saveResults(data, periodoActivo, asignacionesDB, userId, id_escenario);
+  }
+
+  private static async callSolver(cspUrl: string, payload: any) {
+    console.log(`[Scheduler] Enviando datos al motor CSP (relaxed: ${payload.relaxed})...`);
     let response;
     try {
       response = await fetch(`${cspUrl}/optimize`, {
@@ -112,41 +130,55 @@ export class SchedulerService {
 
     const data = await response.json();
 
-    if (data.status === 'INFEASIBLE') {
+    if (data.status === 'ERROR') {
+      throw new Error(`Error en el motor CSP: ${data.message}`);
+    }
+
+    return data;
+  }
+
+  private static async saveResults(data: any, periodoActivo: any, asignacionesDB: any[], userId: string, id_escenario?: string) {
+    const sessions = data.sessions || [];
+    const coverage = data.coverage ?? 100;
+
+    if (data.status === 'INFEASIBLE' && sessions.length === 0) {
       throw new Error('No existe una combinación factible que satisfaga todas las restricciones. Revisa la disponibilidad de los docentes o la capacidad de las aulas.');
     }
 
-    if (data.status !== 'SUCCESS') {
-      throw new Error(`El solucionador finalizó con estado desconocido: ${data.status}`);
+    if (data.status === 'TIMEOUT') {
+      throw new Error('El motor CSP agotó el tiempo límite. Prueba reduciendo el número de clases.');
     }
-
-    // 4. Procesar el resultado y guardar en Prisma (Transacción)
-    const sessions = data.sessions;
 
     let targetEscenarioId = id_escenario;
 
     await prisma.$transaction(async (tx) => {
-      // Si no hay escenario destino, creamos uno de simulación
       if (!targetEscenarioId) {
         const nuevoEsc = await tx.escenario.create({
           data: {
             nom_escenario: `Generación Automática ${new Date().toLocaleDateString()}`,
-            descripcion: 'Horario generado por el Optimizador',
+            descripcion: coverage < 100
+              ? `Horario generado (parcial: ${coverage}% de cobertura)`
+              : 'Horario generado por el Optimizador',
             estado: 'simulation',
             creado_por: userId,
-            cobertura: 100, // asumiendo éxito total, idealmente esto se calcula
-            conflictos: 0
+            cobertura: Math.round(coverage),
+            conflictos: coverage < 100 ? Math.round(100 - coverage) : 0
           }
         });
         targetEscenarioId = nuevoEsc.id_escenario;
       } else {
-        // Limpiar horarios anteriores del escenario objetivo
         await tx.horario_sesion.deleteMany({
           where: { id_escenario: targetEscenarioId }
         });
+        await tx.escenario.update({
+          where: { id_escenario: targetEscenarioId },
+          data: {
+            cobertura: Math.round(coverage),
+            conflictos: coverage < 100 ? Math.round(100 - coverage) : 0
+          }
+        });
       }
 
-      // Crear las nuevas sesiones asignadas por el solucionador
       const newSessions = sessions.map((s: any) => ({
         id_horario: crypto.randomUUID(),
         id_asignacion: s.class_id,
@@ -155,7 +187,7 @@ export class SchedulerService {
         id_dia: s.day,
         id_bloque: s.slot,
         id_periodo: periodoActivo.id_periodo,
-        tipo_sesion: asignacionesDB.find(a => a.id_asignacion === s.class_id)?.curso?.tipo_curso ?? 'Teórica',
+        tipo_sesion: asignacionesDB.find((a: any) => a.id_asignacion === s.class_id)?.curso?.tipo_curso ?? 'Teórica',
         id_usuario: null,
         id_escenario: targetEscenarioId
       }));
@@ -168,16 +200,13 @@ export class SchedulerService {
     });
 
     return {
-      message: data.message,
+      message: data.message || 'Horario generado exitosamente.',
       total_sessions_assigned: sessions.length,
-      escenario_id: targetEscenarioId
+      escenario_id: targetEscenarioId,
+      coverage
     };
   }
 
-  /**
-   * Valida que cada docente tenga la competencia del curso al que fue asignado.
-   * Lanza un error descriptivo si se detectan violaciones.
-   */
   static validateAssignmentCompetencies(
     docentesDB: DocenteWithCompetencias[],
     asignacionesDB: any[]
