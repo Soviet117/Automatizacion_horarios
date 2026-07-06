@@ -22,7 +22,7 @@ interface Escenario {
 interface Session {
   id: string;
   day: number;    // 0=Lunes … 4=Viernes
-  slot: number;   // 0…4
+  slot: number;   // 0…7
   course: string;
   teacher: string;
   teacher: string;
@@ -40,11 +40,14 @@ interface Aula {
 // ── Constants ──────────────────────────────────────────────────────────────
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 const SLOTS = [
-  { label: '07:00 – 09:00' },
-  { label: '09:00 – 11:00' },
-  { label: '11:00 – 13:00' },
-  { label: '14:00 – 16:00' },
-  { label: '16:00 – 18:00' },
+  { label: '07:00 – 08:20' },
+  { label: '08:30 – 10:00' },
+  { label: '10:15 – 11:45' },
+  { label: '12:00 – 13:30' },
+  { label: '15:45 – 17:15' },
+  { label: '17:30 – 19:00' },
+  { label: '19:10 – 20:40' },
+  { label: '20:50 – 22:20' },
 ];
 
 const STATUS_CFG = {

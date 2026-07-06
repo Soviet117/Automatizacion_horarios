@@ -99,12 +99,12 @@ export class SchedulerService {
     const cspUrl = process.env.CSP_SOLVER_URL || 'http://localhost:8000';
 
     // Try hard constraints first
-    let data = await SchedulerService.callSolver(cspUrl, { teachers, rooms, classes, days: 5, slots_per_day: 5, relaxed: false });
+    let data = await SchedulerService.callSolver(cspUrl, { teachers, rooms, classes, days: 5, slots_per_day: 8, relaxed: false });
 
     // If infeasible, retry in relaxed mode
     if (data.status === 'INFEASIBLE') {
       console.log('[Scheduler] Hard constraints infeasible, retrying in relaxed mode...');
-      data = await SchedulerService.callSolver(cspUrl, { teachers, rooms, classes, days: 5, slots_per_day: 5, relaxed: true });
+      data = await SchedulerService.callSolver(cspUrl, { teachers, rooms, classes, days: 5, slots_per_day: 8, relaxed: true });
     }
 
     return await SchedulerService.saveResults(data, periodoActivo, asignacionesDB, userId, id_escenario);

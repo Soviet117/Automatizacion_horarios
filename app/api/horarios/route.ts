@@ -4,11 +4,14 @@ import { prisma } from '../../../lib/prisma';
 
 const DAYS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
 const SLOTS = [
-  { inicio: '07:00', fin: '09:00' },
-  { inicio: '09:00', fin: '11:00' },
-  { inicio: '11:00', fin: '13:00' },
-  { inicio: '14:00', fin: '16:00' },
-  { inicio: '16:00', fin: '18:00' }
+  { inicio: '07:00', fin: '08:20' },
+  { inicio: '08:30', fin: '10:00' },
+  { inicio: '10:15', fin: '11:45' },
+  { inicio: '12:00', fin: '13:30' },
+  { inicio: '15:45', fin: '17:15' },
+  { inicio: '17:30', fin: '19:00' },
+  { inicio: '19:10', fin: '20:40' },
+  { inicio: '20:50', fin: '22:20' }
 ];
 
 const sanitizeTipoCurso = (type: string): string => {

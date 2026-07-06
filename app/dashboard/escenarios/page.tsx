@@ -33,6 +33,7 @@ const STATUS_CFG = {
 };
 
 const card: React.CSSProperties = { background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' };
+const SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:30', '15:45-17:15', '17:30-19:00', '19:10-20:40', '20:50-22:20'];
 
 export default function EscenariosPage() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -481,10 +482,10 @@ export default function EscenariosPage() {
                             ))}
                             
                             {/* Time Slots */}
-                            {[0, 1, 2, 3, 4].map(slot => (
+                            {[0, 1, 2, 3, 4, 5, 6, 7].map(slot => (
                               <React.Fragment key={slot}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  Bloque {slot + 1}
+                                <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
+                                  {SLOTS[slot]}
                                 </div>
                                 {[0, 1, 2, 3, 4].map(day => {
                                   const s = sessions.find(x => x.day === day && x.slot === slot);

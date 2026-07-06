@@ -140,7 +140,7 @@ export default function ReportesPage() {
             {/* Uso de Aulas */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
               <h3 className="font-bold text-slate-900">Utilización de Aulas (Top 10)</h3>
-              <p className="text-xs text-slate-500">Porcentaje de ocupación sobre 25 bloques semanales.</p>
+              <p className="text-xs text-slate-500">Porcentaje de ocupación sobre 40 bloques semanales.</p>
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={roomUsageData} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
@@ -189,7 +189,7 @@ export default function ReportesPage() {
             {/* Carga Docente */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
               <h3 className="font-bold text-slate-900">Carga Horaria Docente (Top 10)</h3>
-              <p className="text-xs text-slate-500">Bloques asignados vs 25 bloques base.</p>
+              <p className="text-xs text-slate-500">Bloques asignados vs 40 bloques base.</p>
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={teacherLoadData} margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
