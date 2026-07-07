@@ -506,7 +506,7 @@ export default function EscenariosPage() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Acciones disponibles</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   
-                  {sel.status === 'draft' && (
+                  {sel.status !== 'published' && (
                     <button onClick={() => handleManualEdit(sel.id)} disabled={isProcessing} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#0f172a', fontFamily: 'inherit', textAlign: 'left', opacity: isProcessing ? 0.7 : 1, gridColumn: '1/-1' }}>
                       <div style={{ padding: 8, background: '#f1f5f9', borderRadius: 9 }}><Clock style={{ width: 15, height: 15, color: '#475569' }} /></div>
                       <div>
