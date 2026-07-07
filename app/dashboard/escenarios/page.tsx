@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Layers, Plus, Copy, Trash2, CheckCircle2, Clock, Archive,
-  ArrowRight, X, GitBranch, Zap, Calendar, Users, Home
+  ArrowRight, X, GitBranch, Zap, Calendar, Users, Home, BookOpen
 } from 'lucide-react';
 import { getEscenarios, createEscenario, deleteEscenario, publishEscenario, duplicateEscenario, runOptimizationForEscenario, assignSessionToSlot, removeSession, moveSessionToSlot } from './actions';
 
@@ -58,6 +58,14 @@ export default function EscenariosPage() {
   const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
   const [dragFeedback, setDragFeedback] = useState<string>('');
   
+  // Manual edit state
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState<{
+    asignaciones: any[];
+    aulas: any[];
+    tipoMapping: Record<string, string[]>;
+  } | null>(null);
+
   // Create form state
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -173,6 +181,11 @@ export default function EscenariosPage() {
   };
 
   const handleOptimize = async (id: string) => {
+    const esc = scenarios.find(s => s.id === id);
+    if (esc && esc.coverage > 0) {
+      const ok = window.confirm('Al re-optimizar con IA se eliminarán todas las sesiones actuales (incluyendo cualquier modificación manual) y se generarán otras nuevas. ¿Deseas continuar?');
+      if (!ok) return;
+    }
     setIsProcessing(true);
     try {
       const result = await runOptimizationForEscenario(id);
@@ -204,6 +217,31 @@ export default function EscenariosPage() {
         setTeachersAvail(data.teachersAvailability || {});
       } else {
         alert('Error al cargar horario');
+      }
+    } catch(e) {
+      console.error(e);
+      alert('Error de conexión');
+    } finally {
+      setLoadingSchedule(false);
+    }
+  };
+
+  const handleManualEdit = async (id: string) => {
+    setScheduleModal(true);
+    setLoadingSchedule(true);
+    setConflictMode(false);
+    setEditMode(true);
+    setEditData(null);
+    setOptimizationResult(null);
+    try {
+      const res = await fetch(`/api/escenarios/${id}/edit-data`);
+      if (res.ok) {
+        const data = await res.json();
+        setScheduleData(data.sessions || []);
+        setTeachersAvail(data.teachersAvailability || {});
+        setEditData({ asignaciones: data.asignaciones || [], aulas: data.aulas || [], tipoMapping: data.tipoMapping || {} });
+      } else {
+        alert('Error al cargar datos del editor');
       }
     } catch(e) {
       console.error(e);
@@ -256,22 +294,29 @@ export default function EscenariosPage() {
     try {
       if (draggedItem.type === 'unassigned') {
         setDragFeedback('Asignando curso...');
-        await assignSessionToSlot(
-          sel.id,
-          draggedItem.data.assignmentId,
-          teacherId,
-          day,
-          slot
-        );
-        setDragFeedback(`✓ "${draggedItem.data.courseName}" asignado a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
-        // Remove from unassigned list
-        setOptimizationResult(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            unassigned: prev.unassigned.filter(u => u.assignmentId !== draggedItem.data.assignmentId)
-          };
-        });
+        // Check if this course already has a session (edit mode case)
+        const existingSession = scheduleData.find((s: any) => s.id_asignacion === draggedItem.data.assignmentId);
+        if (existingSession) {
+          await moveSessionToSlot(existingSession.id, day, slot);
+          setDragFeedback(`✓ "${draggedItem.data.courseName}" movido a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
+        } else {
+          await assignSessionToSlot(
+            sel.id,
+            draggedItem.data.assignmentId,
+            teacherId,
+            day,
+            slot
+          );
+          setDragFeedback(`✓ "${draggedItem.data.courseName}" asignado a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
+          // Remove from unassigned list (conflict mode only)
+          setOptimizationResult(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              unassigned: prev.unassigned.filter(u => u.assignmentId !== draggedItem.data.assignmentId)
+            };
+          });
+        }
       } else {
         // Moving an existing session
         setDragFeedback('Moviendo sesión...');
@@ -435,11 +480,11 @@ export default function EscenariosPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   
                   {sel.status === 'draft' && (
-                    <button onClick={() => window.location.href = '/dashboard/horarios'} disabled={isProcessing} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#0f172a', fontFamily: 'inherit', textAlign: 'left', opacity: isProcessing ? 0.7 : 1, gridColumn: '1/-1' }}>
+                    <button onClick={() => handleManualEdit(sel.id)} disabled={isProcessing} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'white', border: '1.5px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#0f172a', fontFamily: 'inherit', textAlign: 'left', opacity: isProcessing ? 0.7 : 1, gridColumn: '1/-1' }}>
                       <div style={{ padding: 8, background: '#f1f5f9', borderRadius: 9 }}><Clock style={{ width: 15, height: 15, color: '#475569' }} /></div>
                       <div>
                         <div>Editar Manualmente (Gestor)</div>
-                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Este es un borrador diseñado para modificaciones manuales.</div>
+                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: 500 }}>Arrastra los cursos a los bloques para asignarlos manualmente.</div>
                       </div>
                       <ArrowRight style={{ width: 15, height: 15, marginLeft: 'auto', color: '#64748b' }} />
                     </button>
@@ -568,20 +613,26 @@ export default function EscenariosPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(5px)' }}
           onDragOver={e => { if (draggedItem) e.preventDefault(); }}
           onDrop={handleDragEnd}>
-          <div style={{ background: '#f8fafc', width: '100%', maxWidth: conflictMode ? 1300 : 1100, borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.2)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+          <div style={{ background: '#f8fafc', width: '100%', maxWidth: (conflictMode || editMode) ? 1300 : 1100, borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.2)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  {conflictMode ? 'Resolver Incongruencias' : 'Visualizador de Horario'}
+                  {editMode ? 'Editor Manual de Horario' : conflictMode ? 'Resolver Incongruencias' : 'Visualizador de Horario'}
                 </h2>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>{sel?.name}</p>
               </div>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                {editMode && (
+                  <span style={{ fontSize: 12, color: '#92400e', fontWeight: 600, background: '#fffbeb', padding: '4px 10px', borderRadius: 8, border: '1px solid #fde68a' }}>
+                    Modo edición manual
+                  </span>
+                )}
                 {conflictMode && (
                   <span style={{ fontSize: 12, color: '#b91c1c', fontWeight: 600, background: '#fef2f2', padding: '4px 10px', borderRadius: 8, border: '1px solid #fecaca' }}>
                     Modo resolución
                   </span>
                 )}
+                {!editMode && (
                 <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 10 }}>
                   <button onClick={() => setScheduleViewBy('teacher')} style={{ padding: '6px 14px', border: 'none', background: scheduleViewBy === 'teacher' ? 'white' : 'transparent', color: scheduleViewBy === 'teacher' ? '#0f172a' : '#64748b', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, boxShadow: scheduleViewBy === 'teacher' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
                     <Users style={{ width: 14, height: 14 }} /> Docentes
@@ -590,7 +641,8 @@ export default function EscenariosPage() {
                     <Home style={{ width: 14, height: 14 }} /> Aulas
                   </button>
                 </div>
-                <button onClick={() => { setScheduleModal(false); setConflictMode(false); setDraggedItem(null); setDragFeedback(''); }} style={{ padding: 8, border: 'none', background: '#f1f5f9', borderRadius: 10, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X style={{ width: 16, height: 16 }} /></button>
+                )}
+                <button onClick={() => { setScheduleModal(false); setConflictMode(false); setEditMode(false); setDraggedItem(null); setDragFeedback(''); setEditData(null); }} style={{ padding: 8, border: 'none', background: '#f1f5f9', borderRadius: 10, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X style={{ width: 16, height: 16 }} /></button>
               </div>
             </div>
             
@@ -628,6 +680,35 @@ export default function EscenariosPage() {
                 </div>
               )}
 
+              {/* ── Edit sidebar (sticky) ── */}
+              {editMode && editData && editData.asignaciones.length > 0 && (
+                <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 0, alignSelf: 'flex-start', maxHeight: '100%', overflowY: 'auto' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px' }}>
+                    <BookOpen style={{ width: 14, height: 14 }} /> Cursos ({editData.asignaciones.length})
+                  </div>
+                  {editData.asignaciones.map((a: any) => {
+                    const isAssigned = scheduleData.some((s: any) => s.id_asignacion === a.id_asignacion);
+                    return (
+                      <div key={a.id_asignacion}
+                        draggable
+                        onDragStart={e => handleDragStart(e, { type: 'unassigned', data: { ...a, assignmentId: a.id_asignacion, teacherId: a.id_docente, courseName: a.curso.nom_curso, teacherName: a.docente.nom_docente } })}
+                        style={{ background: 'white', border: `2px ${isAssigned ? 'solid #a7f3d0' : 'dashed #fca5a5'}`, borderRadius: 12, padding: 12, cursor: 'grab', userSelect: 'none' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{a.curso.nom_curso}</div>
+                        <div style={{ fontSize: 11.5, color: '#64748b', marginBottom: 2 }}>
+                          Docente: {a.docente.nom_docente}
+                        </div>
+                        <div style={{ fontSize: 11, display: 'inline-flex', padding: '2px 8px', borderRadius: 6, background: isAssigned ? '#f0fdf4' : '#fef2f2', color: isAssigned ? '#065f46' : '#b91c1c', fontWeight: 600, marginTop: 4 }}>
+                          {a.curso.nom_tipo_sesion} · {isAssigned ? 'Asignado' : 'Pendiente'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div style={{ fontSize: 11, color: '#94a3b8', padding: '8px 4px', textAlign: 'center', fontStyle: 'italic' }}>
+                    Arrastra un curso a una celda válida para asignarlo a ese horario
+                  </div>
+                </div>
+              )}
+
               {/* ── Schedule content (scrollable) ── */}
               <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', maxHeight: '100%' }}>
                 {dragFeedback && (
@@ -638,8 +719,88 @@ export default function EscenariosPage() {
 
                 {loadingSchedule ? (
                   <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontWeight: 600 }}>Cargando horario...</div>
-                ) : scheduleData.length === 0 && (!conflictMode || !optimizationResult?.unassigned?.length) ? (
+                ) : scheduleData.length === 0 && !editMode && (!conflictMode || !optimizationResult?.unassigned?.length) ? (
                   <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontWeight: 600 }}>Este escenario no tiene sesiones asignadas aún.</div>
+                ) : editMode ? (
+                  <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                    <div style={{ padding: '16px 20px', background: '#0f172a', color: 'white', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Calendar style={{ width: 16, height: 16, color: '#94a3b8' }} />
+                      Horario General
+                      <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.15)', padding: '4px 10px', borderRadius: 20 }}>
+                        {scheduleData.length} sesiones
+                      </span>
+                    </div>
+                    <div style={{ padding: 20 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '65px repeat(5, 1fr)', gap: 8 }}>
+                        <div></div>
+                        {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(d => (
+                          <div key={d} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#475569', paddingBottom: 10 }}>{d}</div>
+                        ))}
+                        {[0, 1, 2, 3, 4, 5, 6, 7].map(slot => (
+                          <React.Fragment key={slot}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
+                              {SLOTS[slot]}
+                            </div>
+                            {[0, 1, 2, 3, 4].map(day => {
+                              const cellsAtSlot = scheduleData.filter(s => s.day === day && s.slot === slot);
+                              const s = cellsAtSlot[0] || null;
+                              const isValid = draggedItem && isSlotValidForTeacher(
+                                draggedItem.data.teacherId || draggedItem.data.id_docente, day, slot
+                              );
+                              const isHovered = hoveredDay === day && hoveredSlot === slot && isValid;
+
+                              let bg = s ? '#f0fdf4' : '#f8fafc';
+                              let border = s ? '#a7f3d0' : '#f1f5f9';
+                              if (isHovered) { bg = '#fefce8'; border = '#facc15'; }
+                              else if (draggedItem && isValid && !s) { border = '#86efac'; }
+
+                              return (
+                                <div key={`${day}-${slot}`}
+                                  onDragOver={e => handleDragOver(e, day, slot)}
+                                  onDragLeave={handleDragLeave}
+                                  onDrop={e => handleDrop(e, day, slot)}
+                                  style={{
+                                    background: bg,
+                                    border: `${isHovered ? 2.5 : 1.5}px solid ${border}`,
+                                    borderRadius: 12, padding: 10, minHeight: 72,
+                                    display: 'flex', flexDirection: 'column', gap: 3,
+                                    transition: 'all 0.15s',
+                                    cursor: !s ? 'copy' : 'grab',
+                                    opacity: draggedItem && !isValid && !s ? 0.4 : 1,
+                                    outline: isHovered ? '2px solid #eab308' : 'none',
+                                    outlineOffset: 1,
+                                  }}>
+                                  {cellsAtSlot.length > 0 ? cellsAtSlot.map(sess => (
+                                    <div key={sess.id} draggable
+                                      onDragStart={e => { e.stopPropagation(); handleDragStart(e, { type: 'assigned', data: sess }); }}
+                                      style={{ cursor: 'grab', flex: 1, display: 'flex', flexDirection: 'column', gap: 3, userSelect: 'none', marginBottom: 4 }}>
+                                      <div style={{ fontSize: 11, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{sess.courseName}</div>
+                                      <div style={{ fontSize: 10, fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                        <Users style={{ width: 9, height: 9 }} /> {sess.teacherName}
+                                      </div>
+                                      <div style={{ fontSize: 9, color: '#047857', fontWeight: 500 }}>
+                                        <Home style={{ width: 9, height: 9, display: 'inline', verticalAlign: '-1px' }} /> {sess.roomName}
+                                      </div>
+                                    </div>
+                                  )) : (
+                                    isHovered ? (
+                                      <div style={{ fontSize: 10, fontWeight: 600, color: '#a16207', textAlign: 'center', marginTop: 'auto' }}>
+                                        Soltar aquí
+                                      </div>
+                                    ) : !draggedItem && (
+                                      <div style={{ fontSize: 10, color: '#cbd5e1', textAlign: 'center', marginTop: 'auto', paddingBottom: 4 }}>
+                                        Libre
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
                     {scheduleData.length === 0 ? (
@@ -668,16 +829,16 @@ export default function EscenariosPage() {
                                       {SLOTS[slot]}
                                     </div>
                                     {[0, 1, 2, 3, 4].map(day => {
-                                      const s = sessions.find(x => x.day === day && x.slot === slot);
+                                      const sess = sessions.find(x => x.day === day && x.slot === slot);
                                       const isValid = draggedItem && isSlotValidForTeacher(
                                         draggedItem.data.teacherId || draggedItem.data.id_docente, day, slot
                                       );
                                       const isHovered = hoveredDay === day && hoveredSlot === slot && isValid;
 
-                                      let bg = s ? '#f0fdf4' : '#f8fafc';
-                                      let border = s ? '#a7f3d0' : '#f1f5f9';
+                                      let bg = sess ? '#f0fdf4' : '#f8fafc';
+                                      let border = sess ? '#a7f3d0' : '#f1f5f9';
                                       if (isHovered) { bg = '#fefce8'; border = '#facc15'; }
-                                      else if (draggedItem && isValid && !s) { border = '#86efac'; }
+                                      else if (draggedItem && isValid && !sess) { border = '#86efac'; }
 
                                       return (
                                         <div key={`${day}-${slot}`}
@@ -692,28 +853,28 @@ export default function EscenariosPage() {
                                             borderRadius: 12, padding: 10, minHeight: 72,
                                             display: 'flex', flexDirection: 'column', gap: 3,
                                             transition: 'all 0.15s',
-                                            cursor: conflictMode && !s ? 'copy' : s && conflictMode ? 'grab' : 'default',
-                                            opacity: draggedItem && !isValid && !s ? 0.4 : 1,
+                                            cursor: conflictMode && !sess ? 'copy' : sess && conflictMode ? 'grab' : 'default',
+                                            opacity: draggedItem && !isValid && !sess ? 0.4 : 1,
                                             outline: isHovered ? '2px solid #eab308' : 'none',
                                             outlineOffset: 1,
                                           }}>
-                                          {s && (
+                                          {sess && (
                                             <div draggable={conflictMode}
-                                              onDragStart={e => { e.stopPropagation(); handleDragStart(e, { type: 'assigned', data: s }); }}
+                                              onDragStart={e => { e.stopPropagation(); handleDragStart(e, { type: 'assigned', data: sess }); }}
                                               style={{ cursor: conflictMode ? 'grab' : 'default', flex: 1, display: 'flex', flexDirection: 'column', gap: 3, userSelect: 'none' }}>
-                                              <div style={{ fontSize: 12, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{s.courseName}</div>
+                                              <div style={{ fontSize: 12, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{sess.courseName}</div>
                                               <div style={{ fontSize: 11, fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4, marginTop: 'auto' }}>
                                                 {scheduleViewBy === 'teacher' ? <Home style={{ width: 10, height: 10 }} /> : <Users style={{ width: 10, height: 10 }} />}
-                                                {scheduleViewBy === 'teacher' ? s.roomName : s.teacherName}
+                                                {scheduleViewBy === 'teacher' ? sess.roomName : sess.teacherName}
                                               </div>
                                             </div>
                                           )}
-                                          {isHovered && !s && (
+                                          {isHovered && !sess && (
                                             <div style={{ fontSize: 10, fontWeight: 600, color: '#a16207', textAlign: 'center', marginTop: 'auto' }}>
                                               Soltar aquí
                                             </div>
                                           )}
-                                          {!s && !draggedItem && conflictMode && (
+                                          {!sess && !draggedItem && conflictMode && (
                                             <div style={{ fontSize: 10, color: '#cbd5e1', textAlign: 'center', marginTop: 'auto', paddingBottom: 4 }}>
                                               Libre
                                             </div>

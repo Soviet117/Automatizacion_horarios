@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { TIPO_AULA_MAP_BY_NAME } from '@/lib/tipoAulaMap';
 
 export async function getEscenarios() {
   const escenarios = await prisma.escenario.findMany({
@@ -145,7 +146,7 @@ export async function assignSessionToSlot(
   // Load asignacion with curso info
   const asignacion = await prisma.asignacion.findUnique({
     where: { id_asignacion },
-    include: { curso: true }
+    include: { curso: { include: { tipo_sesion: true } } }
   });
   if (!asignacion) throw new Error('Asignación no encontrada.');
   const cohortId = `${asignacion.curso.id_carrera}-${asignacion.curso.id_ciclo}`;
@@ -185,19 +186,23 @@ export async function assignSessionToSlot(
   });
   const occupiedIds = new Set(occupiedRooms.map(r => r.id_aula));
 
+  const tipoNombre = asignacion.curso.tipo_sesion.nom_tipo_sesion;
+  const tiposPermitidos = TIPO_AULA_MAP_BY_NAME[tipoNombre] || ['TA01'];
+
   const availableRoom = await prisma.aula.findFirst({
     where: {
       capacidad: { gte: estudiantes },
+      id_tipo_aula: { in: tiposPermitidos },
       NOT: { id_aula: { in: [...occupiedIds] } }
     },
     orderBy: { capacidad: 'asc' }
   });
   if (!availableRoom) {
-    // Build a detailed message about occupied rooms
     const roomDetails = occupiedRooms.map(r =>
       `"${r.aula.nom_aula}" ocupada por "${r.asignacion.curso.nom_curso}"`
     ).join(', ');
-    throw new Error(`No hay aulas libres con capacidad para ${estudiantes} alumnos en este bloque. ${roomDetails ? 'Aulas ocupadas: ' + roomDetails : ''}`);
+    const tipoNames = tiposPermitidos.join(', ');
+    throw new Error(`No hay aulas libres tipo "${tipoNombre}" (${tipoNames}) con capacidad para ${estudiantes} alumnos en este bloque. ${roomDetails ? 'Aulas ocupadas: ' + roomDetails : ''}`);
   }
 
   // 5. Create session
@@ -249,7 +254,7 @@ export async function moveSessionToSlot(
 ) {
   const session = await prisma.horario_sesion.findUnique({
     where: { id_horario },
-    include: { asignacion: { include: { curso: true } } }
+    include: { asignacion: { include: { curso: { include: { tipo_sesion: true } } } } }
   });
   if (!session) throw new Error('Sesión no encontrada.');
 
@@ -313,9 +318,13 @@ export async function moveSessionToSlot(
   });
   const occupiedIds = new Set(occupiedRooms.map(r => r.id_aula));
 
+  const tipoNombre = session.asignacion.curso.tipo_sesion.nom_tipo_sesion;
+  const tiposPermitidos = TIPO_AULA_MAP_BY_NAME[tipoNombre] || ['TA01'];
+
   const availableRoom = await prisma.aula.findFirst({
     where: {
       capacidad: { gte: estudiantes },
+      id_tipo_aula: { in: tiposPermitidos },
       NOT: { id_aula: { in: [...occupiedIds] } }
     },
     orderBy: { capacidad: 'asc' }
@@ -324,10 +333,10 @@ export async function moveSessionToSlot(
     const roomDetails = occupiedRooms.map(r =>
       `"${r.aula.nom_aula}" ocupada por "${r.asignacion.curso.nom_curso}"`
     ).join(', ');
-    throw new Error(`No hay aulas libres con capacidad para ${estudiantes} alumnos en este bloque. ${roomDetails ? 'Aulas ocupadas: ' + roomDetails : ''}`);
+    const tipoNames = tiposPermitidos.join(', ');
+    throw new Error(`No hay aulas libres tipo "${tipoNombre}" (${tipoNames}) con capacidad para ${estudiantes} alumnos en este bloque. ${roomDetails ? 'Aulas ocupadas: ' + roomDetails : ''}`);
   }
 
-  // Update session
   await prisma.horario_sesion.update({
     where: { id_horario },
     data: {
