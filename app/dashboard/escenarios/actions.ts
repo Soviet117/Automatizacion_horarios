@@ -130,3 +130,200 @@ export async function runOptimizationForEscenario(id_escenario: string) {
   revalidatePath('/dashboard/escenarios');
   return result;
 }
+
+export async function assignSessionToSlot(
+  id_escenario: string,
+  id_asignacion: string,
+  id_docente: string,
+  id_dia: number,
+  id_bloque: number,
+  tipo_sesion?: string
+) {
+  const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+  if (!periodo) throw new Error('No hay periodo académico activo');
+
+  // 1. Check teacher availability
+  const disp = await prisma.disponibilidad_docente.findFirst({
+    where: { id_docente, id_dia, id_bloque }
+  });
+  if (!disp) throw new Error('El docente no tiene disponibilidad en ese horario.');
+
+  // 2. Check teacher collision
+  const teacherCollision = await prisma.horario_sesion.findFirst({
+    where: {
+      id_escenario,
+      id_docente,
+      id_dia,
+      id_bloque,
+      NOT: { id_asignacion }
+    }
+  });
+  if (teacherCollision) throw new Error('El docente ya tiene una sesión en ese horario.');
+
+  // 3. Find available room (capacity >= students, not occupied)
+  const asignacion = await prisma.asignacion.findUnique({
+    where: { id_asignacion },
+    include: { curso: true }
+  });
+  if (!asignacion) throw new Error('Asignación no encontrada.');
+
+  const estudiantes = asignacion.curso.alumnos || 30;
+
+  const occupiedRooms = await prisma.horario_sesion.findMany({
+    where: { id_escenario, id_dia, id_bloque },
+    select: { id_aula: true }
+  });
+  const occupiedIds = new Set(occupiedRooms.map(r => r.id_aula));
+
+  const availableRoom = await prisma.aula.findFirst({
+    where: {
+      capacidad: { gte: estudiantes },
+      NOT: { id_aula: { in: [...occupiedIds] } }
+    },
+    orderBy: { capacidad: 'asc' }
+  });
+  if (!availableRoom) throw new Error('No hay aulas disponibles con capacidad suficiente en ese horario.');
+
+  // 4. Create session
+  const session = await prisma.horario_sesion.create({
+    data: {
+      id_horario: crypto.randomUUID(),
+      id_asignacion,
+      id_docente,
+      id_aula: availableRoom.id_aula,
+      id_dia,
+      id_bloque,
+      id_periodo: periodo.id_periodo,
+      tipo_sesion: tipo_sesion ?? asignacion.curso.tipo_curso ?? 'Teórica',
+      id_usuario: null,
+      id_escenario
+    }
+  });
+
+  // 5. Update coverage
+  await updateEscenarioCoverage(id_escenario, periodo.id_periodo);
+
+  revalidatePath('/dashboard/escenarios');
+  return { success: true, session };
+}
+
+export async function removeSession(id_horario: string) {
+  const session = await prisma.horario_sesion.findUnique({
+    where: { id_horario },
+    select: { id_escenario: true }
+  });
+  if (!session) throw new Error('Sesión no encontrada.');
+
+  await prisma.horario_sesion.delete({ where: { id_horario } });
+
+  // Update coverage
+  const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+  if (periodo) {
+    await updateEscenarioCoverage(session.id_escenario, periodo.id_periodo);
+  }
+
+  revalidatePath('/dashboard/escenarios');
+  return { success: true };
+}
+
+export async function moveSessionToSlot(
+  id_horario: string,
+  id_dia: number,
+  id_bloque: number
+) {
+  const session = await prisma.horario_sesion.findUnique({
+    where: { id_horario },
+    include: { asignacion: { include: { curso: true } } }
+  });
+  if (!session) throw new Error('Sesión no encontrada.');
+
+  const escenario = await prisma.escenario.findUnique({
+    where: { id_escenario: session.id_escenario }
+  });
+  if (!escenario || escenario.estado !== 'draft' && escenario.estado !== 'simulation') {
+    throw new Error('Solo puedes mover sesiones en escenarios Borrador o Simulación.');
+  }
+
+  // Check teacher availability
+  const disp = await prisma.disponibilidad_docente.findFirst({
+    where: { id_docente: session.id_docente, id_dia, id_bloque }
+  });
+  if (!disp) throw new Error('El docente no tiene disponibilidad en ese horario.');
+
+  // Check teacher collision (excluding self)
+  const teacherCollision = await prisma.horario_sesion.findFirst({
+    where: {
+      id_escenario: session.id_escenario,
+      id_docente: session.id_docente,
+      id_dia,
+      id_bloque,
+      NOT: { id_horario }
+    }
+  });
+  if (teacherCollision) throw new Error('El docente ya tiene una sesión en ese horario.');
+
+  // Find available room
+  const estudiantes = session.asignacion.curso.alumnos || 30;
+  const occupiedRooms = await prisma.horario_sesion.findMany({
+    where: {
+      id_escenario: session.id_escenario,
+      id_dia,
+      id_bloque,
+      NOT: { id_horario }
+    },
+    select: { id_aula: true }
+  });
+  const occupiedIds = new Set(occupiedRooms.map(r => r.id_aula));
+
+  const availableRoom = await prisma.aula.findFirst({
+    where: {
+      capacidad: { gte: estudiantes },
+      NOT: { id_aula: { in: [...occupiedIds] } }
+    },
+    orderBy: { capacidad: 'asc' }
+  });
+  if (!availableRoom) throw new Error('No hay aulas disponibles con capacidad suficiente en ese horario.');
+
+  // Update session
+  await prisma.horario_sesion.update({
+    where: { id_horario },
+    data: {
+      id_dia,
+      id_bloque,
+      id_aula: availableRoom.id_aula
+    }
+  });
+
+  revalidatePath('/dashboard/escenarios');
+  return { success: true };
+}
+
+async function updateEscenarioCoverage(id_escenario: string, id_periodo: string) {
+  const [totalAsignaciones, sesionesAsignadas] = await Promise.all([
+    prisma.asignacion.count({
+      where: {
+        id_periodo,
+        curso: {
+          id_ciclo: (await prisma.escenario.findUnique({ where: { id_escenario }, select: { id_ciclo: true } }))?.id_ciclo ?? undefined
+        }
+      }
+    }),
+    prisma.horario_sesion.count({
+      where: { id_escenario }
+    })
+  ]);
+
+  // Simple coverage: assigned / (total * avg_hours_per_course)
+  // We use a heuristic: each course needs ~4 sessions on average
+  const estimatedTotal = totalAsignaciones * 4;
+  const coverage = estimatedTotal > 0 ? Math.min(Math.round((sesionesAsignadas / estimatedTotal) * 100), 100) : 0;
+  const conflicts = Math.max(0, 100 - coverage);
+
+  await prisma.escenario.update({
+    where: { id_escenario },
+    data: {
+      cobertura: coverage,
+      conflictos: coverage < 100 ? conflicts : 0
+    }
+  });
+}

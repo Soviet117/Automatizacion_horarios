@@ -1,38 +1,75 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const { id } = await props.params;
 
     const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
     if (!periodo) {
       return NextResponse.json({ error: 'No hay periodo académico activo' }, { status: 400 });
     }
 
-    const sesiones = await prisma.horario_sesion.findMany({
+    const [sesiones, escenario] = await Promise.all([
+      prisma.horario_sesion.findMany({
+        where: {
+          id_escenario: id,
+          asignacion: { id_periodo: periodo.id_periodo }
+        },
+        include: {
+          asignacion: {
+            include: {
+              curso: true,
+              periodo: true
+            }
+          },
+          docente: true,
+          aula: true,
+          dia_semana: true,
+          bloque_horario: true,
+          periodo: true
+        },
+        orderBy: [
+          { id_dia: 'asc' },
+          { id_bloque: 'asc' }
+        ]
+      }),
+      prisma.escenario.findUnique({
+        where: { id_escenario: id },
+        select: { id_ciclo: true, id_plan: true }
+      })
+    ]);
+
+    // Get all teachers involved in this scenario (via asignaciones in the same ciclo/plan)
+    const docentes = await prisma.docente.findMany({
       where: {
-        id_escenario: id,
-        asignacion: { id_periodo: periodo.id_periodo }
+        competencia_docente: {
+          some: {
+            curso: {
+              ...(escenario?.id_ciclo !== undefined ? { id_ciclo: escenario.id_ciclo } : {}),
+              ...(escenario?.id_plan !== undefined ? { id_plan: escenario.id_plan } : {}),
+            }
+          }
+        }
       },
       include: {
-        asignacion: {
-          include: {
-            curso: true,
-            periodo: true
-          }
-        },
-        docente: true,
-        aula: true,
-        dia_semana: true,
-        bloque_horario: true,
-        periodo: true
-      },
-      orderBy: [
-        { id_dia: 'asc' },
-        { id_bloque: 'asc' }
-      ]
+        disponibilidad_docente: true
+      }
     });
+
+    const teachersAvailability: Record<string, { name: string; availability: Record<number, number[]> }> = {};
+    for (const d of docentes) {
+      const availability: Record<number, number[]> = { 0: [], 1: [], 2: [], 3: [], 4: [] };
+      for (const disp of d.disponibilidad_docente) {
+        if (availability[disp.id_dia] !== undefined) {
+          availability[disp.id_dia].push(disp.id_bloque);
+        }
+      }
+      teachersAvailability[d.id_docente] = {
+        name: `${d.nom_docente} ${d.ape_docente}`,
+        availability
+      };
+    }
 
     // Mapear para el frontend
     const schedule = sesiones.map(s => ({
@@ -57,7 +94,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       id_bloque: s.id_bloque
     }));
 
-    return NextResponse.json(schedule);
+    return NextResponse.json({ sessions: schedule, teachersAvailability });
   } catch (error) {
     console.error('Error fetching scenario schedule:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

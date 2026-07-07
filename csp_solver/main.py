@@ -41,9 +41,17 @@ class AssignedSession(BaseModel):
     day: int
     slot: int
 
+class UnassignedClass(BaseModel):
+    class_id: str
+    course_id: str
+    teacher_id: str
+    reason: str
+    required_hours: int
+
 class OptimizationResponse(BaseModel):
     status: str
     sessions: List[AssignedSession]
+    unassigned: List[UnassignedClass] = []
     message: str = ""
     coverage: Optional[float] = None
 
@@ -78,24 +86,47 @@ def build_model(req: OptimizationRequest):
     for c in req.classes:
         t = teachers_dict.get(c.teacher_id)
         if not t:
-            unresolvable.append(c.course_id)
+            unresolvable.append(UnassignedClass(
+                class_id=c.id, course_id=c.course_id,
+                teacher_id=c.teacher_id, reason="no_teacher_assigned",
+                required_hours=c.required_hours
+            ))
             continue
         if c.course_id not in t.competencies:
-            unresolvable.append(c.course_id)
+            unresolvable.append(UnassignedClass(
+                class_id=c.id, course_id=c.course_id,
+                teacher_id=c.teacher_id, reason="no_teacher_competent",
+                required_hours=c.required_hours
+            ))
             continue
 
         eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count]
         if not eligible_rooms:
             eligible_rooms = [r for r in req.rooms if r.capacity == max_cap]
+            if not eligible_rooms:
+                unresolvable.append(UnassignedClass(
+                    class_id=c.id, course_id=c.course_id,
+                    teacher_id=c.teacher_id, reason="no_room_available",
+                    required_hours=c.required_hours
+                ))
+                continue
 
+        has_any_available = False
         for r in eligible_rooms:
             for d in range(req.days):
                 for s in range(req.slots_per_day):
                     if (d, s) in teacher_avail[t.id]:
+                        has_any_available = True
                         key = (c.id, t.id, r.id, d, s)
                         assign[key] = model.NewBoolVar(
                             f"a_{c.id[:6]}_{t.id[:6]}_{r.id[:6]}_{d}_{s}"
                         )
+        if not has_any_available:
+            unresolvable.append(UnassignedClass(
+                class_id=c.id, course_id=c.course_id,
+                teacher_id=c.teacher_id, reason="no_teacher_availability",
+                required_hours=c.required_hours
+            ))
 
     return model, assign, unresolvable, teacher_avail, teachers_dict
 
@@ -199,30 +230,37 @@ async def optimize_schedule(request: Request):
         # Build model
         model, assign, unresolvable, teacher_avail, teachers_dict = build_model(req)
 
+        # Collect unresolvable class_ids for filtering
+        unresolvable_ids = {u.class_id for u in unresolvable}
+
         if unresolvable:
             if req.relaxed:
                 # In relaxed mode, exclude unresolvable classes and continue
-                req.classes = [c for c in req.classes if c.course_id not in unresolvable]
+                req.classes = [c for c in req.classes if c.id not in unresolvable_ids]
                 model, assign, _, _, _ = build_model(req)
                 if not assign or not req.classes:
-                    return {
-                        "status": "INFEASIBLE",
-                        "sessions": [],
-                        "message": f"Cursos sin solución: {', '.join(set(unresolvable))}",
-                        "coverage": 0.0
-                    }
+                    return OptimizationResponse(
+                        status="INFEASIBLE",
+                        sessions=[],
+                        unassigned=unresolvable,
+                        message=f"Cursos sin solución: {', '.join(set(u.course_id for u in unresolvable))}",
+                        coverage=0.0
+                    ).model_dump()
             else:
-                return {
-                    "status": "INFEASIBLE",
-                    "sessions": [],
-                    "message": f"No se pueden asignar los siguientes cursos: {', '.join(set(unresolvable))}. Verifica que tengan un docente con la competencia habilitada.",
-                    "coverage": 0.0
-                }
+                return OptimizationResponse(
+                    status="INFEASIBLE",
+                    sessions=[],
+                    unassigned=unresolvable,
+                    message=f"No se pueden asignar los siguientes cursos. Verifica que tengan un docente con la competencia habilitada.",
+                    coverage=0.0
+                ).model_dump()
 
         if not assign:
-            return {"status": "INFEASIBLE", "sessions": [],
-                    "message": "No hay combinaciones válidas de docente/aula/bloque.",
-                    "coverage": 0.0}
+            return OptimizationResponse(
+                status="INFEASIBLE", sessions=[], unassigned=unresolvable,
+                message="No hay combinaciones válidas de docente/aula/bloque.",
+                coverage=0.0
+            ).model_dump()
 
         # Add constraints
         add_constraints(model, assign, req, req.relaxed)
@@ -236,25 +274,46 @@ async def optimize_schedule(request: Request):
             coverage = compute_coverage(sessions, req)
             label = "OPTIMAL" if status_code == cp_model.OPTIMAL else "FEASIBLE"
             status = "SUCCESS" if coverage >= 100.0 else "PARTIAL"
-            return {
-                "status": status,
-                "sessions": sessions,
-                "coverage": coverage,
-                "message": f"Horario generado ({label}). {len(sessions)} sesiones asignadas, cobertura: {coverage}%."
-            }
+
+            # Track partially assigned classes
+            assigned_hours = {}
+            for s in sessions:
+                assigned_hours[s["class_id"]] = assigned_hours.get(s["class_id"], 0) + 1
+            for c in req.classes:
+                assigned = assigned_hours.get(c.id, 0)
+                if assigned < c.required_hours:
+                    unresolvable.append(UnassignedClass(
+                        class_id=c.id, course_id=c.course_id,
+                        teacher_id=c.teacher_id, reason="partially_assigned",
+                        required_hours=c.required_hours
+                    ))
+
+            return OptimizationResponse(
+                status=status,
+                sessions=sessions,
+                unassigned=unresolvable,
+                coverage=coverage,
+                message=f"Horario generado ({label}). {len(sessions)} sesiones asignadas, cobertura: {coverage}%."
+            ).model_dump()
         elif status_code == cp_model.INFEASIBLE:
             if not req.relaxed:
-                return {"status": "INFEASIBLE", "sessions": [],
-                        "message": "No existe combinación factible. Revisa disponibilidades y capacidades.",
-                        "coverage": 0.0}
+                return OptimizationResponse(
+                    status="INFEASIBLE", sessions=[], unassigned=unresolvable,
+                    message="No existe combinación factible. Revisa disponibilidades y capacidades.",
+                    coverage=0.0
+                ).model_dump()
             else:
-                return {"status": "INFEASIBLE", "sessions": [],
-                        "message": "No se pudo generar ningún horario incluso en modo relajado.",
-                        "coverage": 0.0}
+                return OptimizationResponse(
+                    status="INFEASIBLE", sessions=[], unassigned=unresolvable,
+                    message="No se pudo generar ningún horario incluso en modo relajado.",
+                    coverage=0.0
+                ).model_dump()
         else:
-            return {"status": "TIMEOUT", "sessions": [],
-                    "message": "El solver agotó el tiempo límite.",
-                    "coverage": 0.0}
+            return OptimizationResponse(
+                status="TIMEOUT", sessions=[], unassigned=unresolvable,
+                message="El solver agotó el tiempo límite.",
+                coverage=0.0
+            ).model_dump()
 
     except Exception as e:
         import traceback

@@ -140,14 +140,36 @@ export class SchedulerService {
   private static async saveResults(data: any, periodoActivo: any, asignacionesDB: any[], userId: string, id_escenario?: string) {
     const sessions = data.sessions || [];
     const coverage = data.coverage ?? 100;
+    const unassignedRaw = data.unassigned || [];
 
     if (data.status === 'INFEASIBLE' && sessions.length === 0) {
-      throw new Error('No existe una combinación factible que satisfaga todas las restricciones. Revisa la disponibilidad de los docentes o la capacidad de las aulas.');
+      // Build detailed error with unassigned info
+      let msg = 'No existe una combinación factible que satisfaga todas las restricciones.';
+      if (unassignedRaw.length > 0) {
+        const reasons = unassignedRaw.map((u: any) => u.reason);
+        msg += ` Cursos sin asignar: ${unassignedRaw.length}.`;
+      }
+      throw new Error(msg);
     }
 
     if (data.status === 'TIMEOUT') {
       throw new Error('El motor CSP agotó el tiempo límite. Prueba reduciendo el número de clases.');
     }
+
+    // Map unassigned data with course and teacher names
+    const unassigned = unassignedRaw.map((u: any) => {
+      const asignacion = asignacionesDB.find((a: any) => a.id_asignacion === u.class_id);
+      return {
+        courseName: asignacion?.curso?.nom_curso ?? u.course_id,
+        teacherName: '', // filled below
+        teacherId: u.teacher_id,
+        assignmentId: u.class_id,
+        courseId: u.course_id,
+        reason: u.reason,
+        requiredHours: u.required_hours,
+        cohortId: asignacion ? `${asignacion.curso.id_carrera}-${asignacion.curso.id_ciclo}` : ''
+      };
+    });
 
     let targetEscenarioId = id_escenario;
 
@@ -199,11 +221,25 @@ export class SchedulerService {
       }
     });
 
+    // Fill teacher names from DB
+    if (unassigned.length > 0) {
+      const teacherIds = [...new Set(unassigned.map((u: any) => u.teacherId))];
+      const teachers = await prisma.docente.findMany({
+        where: { id_docente: { in: teacherIds } },
+        select: { id_docente: true, nom_docente: true, ape_docente: true }
+      });
+      const teacherMap = new Map(teachers.map(t => [t.id_docente, `${t.nom_docente} ${t.ape_docente}`]));
+      for (const u of unassigned) {
+        u.teacherName = teacherMap.get(u.teacherId) ?? 'Docente';
+      }
+    }
+
     return {
       message: data.message || 'Horario generado exitosamente.',
       total_sessions_assigned: sessions.length,
       escenario_id: targetEscenarioId,
-      coverage
+      coverage,
+      unassigned
     };
   }
 

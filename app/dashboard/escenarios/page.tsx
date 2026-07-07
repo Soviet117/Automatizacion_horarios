@@ -5,7 +5,7 @@ import {
   Layers, Plus, Copy, Trash2, CheckCircle2, Clock, Archive,
   ArrowRight, X, GitBranch, Zap, Calendar, Users, Home
 } from 'lucide-react';
-import { getEscenarios, createEscenario, deleteEscenario, publishEscenario, duplicateEscenario, runOptimizationForEscenario } from './actions';
+import { getEscenarios, createEscenario, deleteEscenario, publishEscenario, duplicateEscenario, runOptimizationForEscenario, assignSessionToSlot, removeSession, moveSessionToSlot } from './actions';
 
 type ScenarioStatus = 'published' | 'draft' | 'simulation';
 interface Scenario {
@@ -45,6 +45,18 @@ export default function EscenariosPage() {
   const [scheduleData, setScheduleData] = useState<any[]>([]);
   const [scheduleViewBy, setScheduleViewBy] = useState<'teacher' | 'room'>('teacher');
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  
+  // Conflict resolution state
+  const [optimizationResult, setOptimizationResult] = useState<{
+    coverage: number;
+    unassigned: any[];
+  } | null>(null);
+  const [conflictMode, setConflictMode] = useState(false);
+  const [teachersAvail, setTeachersAvail] = useState<Record<string, { name: string; availability: Record<number, number[]> }>>({});
+  const [draggedItem, setDraggedItem] = useState<{ type: 'unassigned' | 'assigned'; data: any } | null>(null);
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const [hoveredSlot, setHoveredSlot] = useState<number | null>(null);
+  const [dragFeedback, setDragFeedback] = useState<string>('');
   
   // Create form state
   const [newName, setNewName] = useState('');
@@ -166,26 +178,30 @@ export default function EscenariosPage() {
       const result = await runOptimizationForEscenario(id);
       await loadData();
       const cov = (result as any)?.coverage;
+      const unassigned = (result as any)?.unassigned || [];
       if (cov !== undefined && cov < 100) {
-        alert(`Horario generado con cobertura parcial (${cov}%). Hay sesiones sin asignar. Revisa el horario y ajusta manualmente si es necesario.`);
+        setOptimizationResult({ coverage: cov, unassigned });
       } else {
-        alert('Horario generado y guardado en este escenario exitosamente.');
+        setOptimizationResult(null);
       }
     } catch (e: any) {
       alert(e.message);
+      setOptimizationResult(null);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleViewSchedule = async (id: string) => {
+  const handleViewSchedule = async (id: string, conflict = false) => {
     setScheduleModal(true);
     setLoadingSchedule(true);
+    setConflictMode(conflict);
     try {
       const res = await fetch(`/api/escenarios/${id}/horario`);
       if (res.ok) {
         const data = await res.json();
-        setScheduleData(data);
+        setScheduleData(data.sessions || data);
+        setTeachersAvail(data.teachersAvailability || {});
       } else {
         alert('Error al cargar horario');
       }
@@ -195,6 +211,99 @@ export default function EscenariosPage() {
     } finally {
       setLoadingSchedule(false);
     }
+  };
+
+  // ── Drag & Drop handlers ──────────────────────────────────────────────────
+  const isSlotValidForTeacher = (teacherId: string, day: number, slot: number) => {
+    const ta = teachersAvail[teacherId];
+    if (!ta) return false;
+    const dayAvail = ta.availability[day];
+    return dayAvail?.includes(slot) ?? false;
+  };
+
+  const handleDragStart = (e: React.DragEvent, item: { type: 'unassigned' | 'assigned'; data: any }) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'BUTTON' || target.closest('button')) return;
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: item.type, id: item.data.id || item.data.assignmentId }));
+  };
+
+  const handleDragOver = (e: React.DragEvent, day: number, slot: number) => {
+    if (!draggedItem) return;
+    const teacherId = draggedItem.data.teacherId || draggedItem.data.id_docente;
+    if (!isSlotValidForTeacher(teacherId, day, slot)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setHoveredDay(day);
+    setHoveredSlot(slot);
+  };
+
+  const handleDragLeave = () => {
+    setHoveredDay(null);
+    setHoveredSlot(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, day: number, slot: number) => {
+    e.preventDefault();
+    setHoveredDay(null);
+    setHoveredSlot(null);
+    if (!draggedItem || !sel) return;
+
+    const teacherId = draggedItem.data.teacherId || draggedItem.data.id_docente;
+    if (!isSlotValidForTeacher(teacherId, day, slot)) return;
+
+    try {
+      if (draggedItem.type === 'unassigned') {
+        setDragFeedback('Asignando curso...');
+        await assignSessionToSlot(
+          sel.id,
+          draggedItem.data.assignmentId,
+          teacherId,
+          day,
+          slot
+        );
+        setDragFeedback(`✓ "${draggedItem.data.courseName}" asignado a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
+        // Remove from unassigned list
+        setOptimizationResult(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            unassigned: prev.unassigned.filter(u => u.assignmentId !== draggedItem.data.assignmentId)
+          };
+        });
+      } else {
+        // Moving an existing session
+        setDragFeedback('Moviendo sesión...');
+        await moveSessionToSlot(draggedItem.data.id, day, slot);
+        setDragFeedback(`✓ Sesión movida a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
+      }
+      // Refresh schedule data
+      const res = await fetch(`/api/escenarios/${sel.id}/horario`);
+      if (res.ok) {
+        const data = await res.json();
+        setScheduleData(data.sessions || data);
+        setTeachersAvail(data.teachersAvailability || {});
+      }
+      await loadData();
+    } catch (err: any) {
+      setDragFeedback(`✗ ${err.message}`);
+      setTimeout(() => setDragFeedback(''), 4000);
+    } finally {
+      setDraggedItem(null);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setHoveredDay(null);
+    setHoveredSlot(null);
+  };
+
+  const isDropTarget = (day: number, slot: number) => {
+    if (!draggedItem || !hoveredDay || hoveredDay !== day || hoveredSlot !== slot) return false;
+    const teacherId = draggedItem.data.teacherId || draggedItem.data.id_docente;
+    return isSlotValidForTeacher(teacherId, day, slot);
   };
 
   const sel = scenarios.find(s => s.id === selected);
@@ -296,6 +405,29 @@ export default function EscenariosPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Conflict Banner */}
+              {optimizationResult && optimizationResult.coverage < 100 && (
+                <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 14, padding: '16px 18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ padding: 8, background: '#fee2e2', borderRadius: 9, flexShrink: 0, lineHeight: 0 }}>
+                      <Zap style={{ width: 16, height: 16, color: '#ef4444' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#b91c1c', marginBottom: 2 }}>
+                        Cobertura parcial: {optimizationResult.coverage}%
+                      </div>
+                      <div style={{ fontSize: 13, color: '#991b1b', marginBottom: 10 }}>
+                        {optimizationResult.unassigned.length} curso{optimizationResult.unassigned.length !== 1 ? 's' : ''} sin asignar. Arrástralos al horario para completar la programación.
+                      </div>
+                      <button onClick={() => handleViewSchedule(sel.id, true)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#b91c1c', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'white', fontFamily: 'inherit' }}>
+                        <Calendar style={{ width: 14, height: 14 }} /> Resolver Incongruencias
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div>
@@ -433,14 +565,23 @@ export default function EscenariosPage() {
 
       {/* Schedule Viewer Modal */}
       {scheduleModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(5px)' }}>
-          <div style={{ background: '#f8fafc', width: '100%', maxWidth: 1100, borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.2)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(5px)' }}
+          onDragOver={e => { if (draggedItem) e.preventDefault(); }}
+          onDrop={handleDragEnd}>
+          <div style={{ background: '#f8fafc', width: '100%', maxWidth: conflictMode ? 1300 : 1100, borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.2)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Visualizador de Horario</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  {conflictMode ? 'Resolver Incongruencias' : 'Visualizador de Horario'}
+                </h2>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>{sel?.name}</p>
               </div>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                {conflictMode && (
+                  <span style={{ fontSize: 12, color: '#b91c1c', fontWeight: 600, background: '#fef2f2', padding: '4px 10px', borderRadius: 8, border: '1px solid #fecaca' }}>
+                    Modo resolución
+                  </span>
+                )}
                 <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 10 }}>
                   <button onClick={() => setScheduleViewBy('teacher')} style={{ padding: '6px 14px', border: 'none', background: scheduleViewBy === 'teacher' ? 'white' : 'transparent', color: scheduleViewBy === 'teacher' ? '#0f172a' : '#64748b', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, boxShadow: scheduleViewBy === 'teacher' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
                     <Users style={{ width: 14, height: 14 }} /> Docentes
@@ -449,69 +590,148 @@ export default function EscenariosPage() {
                     <Home style={{ width: 14, height: 14 }} /> Aulas
                   </button>
                 </div>
-                <button onClick={() => setScheduleModal(false)} style={{ padding: 8, border: 'none', background: '#f1f5f9', borderRadius: 10, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X style={{ width: 16, height: 16 }} /></button>
+                <button onClick={() => { setScheduleModal(false); setConflictMode(false); setDraggedItem(null); setDragFeedback(''); }} style={{ padding: 8, border: 'none', background: '#f1f5f9', borderRadius: 10, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X style={{ width: 16, height: 16 }} /></button>
               </div>
             </div>
             
-            <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
-              {loadingSchedule ? (
-                <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontWeight: 600 }}>Cargando horario...</div>
-              ) : scheduleData.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontWeight: 600 }}>Este escenario no tiene sesiones asignadas aún.</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
-                  {/* Agrupar los datos por Docente o por Aula */}
-                  {Array.from(new Set(scheduleData.map(s => scheduleViewBy === 'teacher' ? s.teacherName : s.roomName))).sort().map(entityName => {
-                    const sessions = scheduleData.filter(s => (scheduleViewBy === 'teacher' ? s.teacherName : s.roomName) === entityName);
-                    
-                    return (
-                      <div key={entityName} style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-                        <div style={{ padding: '16px 20px', background: '#0f172a', color: 'white', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {scheduleViewBy === 'teacher' ? <Users style={{ width: 16, height: 16, color: '#94a3b8' }}/> : <Home style={{ width: 16, height: 16, color: '#94a3b8' }}/>}
-                          {entityName}
-                          <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.15)', padding: '4px 10px', borderRadius: 20 }}>
-                            {sessions.length} sesiones
-                          </span>
-                        </div>
-                        <div style={{ padding: 20 }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(5, 1fr)', gap: 10 }}>
-                            {/* Header row */}
-                            <div></div>
-                            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(d => (
-                              <div key={d} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#475569', paddingBottom: 10 }}>{d}</div>
-                            ))}
-                            
-                            {/* Time Slots */}
-                            {[0, 1, 2, 3, 4, 5, 6, 7].map(slot => (
-                              <React.Fragment key={slot}>
-                                <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
-                                  {SLOTS[slot]}
-                                </div>
-                                {[0, 1, 2, 3, 4].map(day => {
-                                  const s = sessions.find(x => x.day === day && x.slot === slot);
-                                  return (
-                                    <div key={`${day}-${slot}`} style={{ background: s ? '#f0fdf4' : '#f8fafc', border: `1.5px solid ${s ? '#a7f3d0' : '#f1f5f9'}`, borderRadius: 12, padding: 12, minHeight: 70, display: 'flex', flexDirection: 'column', gap: 4, transition: 'all 0.2s' }}>
-                                      {s && (
-                                        <>
-                                          <div style={{ fontSize: 12.5, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{s.courseName}</div>
-                                          <div style={{ fontSize: 11.5, fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4, marginTop: 'auto' }}>
-                                            {scheduleViewBy === 'teacher' ? <Home style={{ width: 11, height: 11 }} /> : <Users style={{ width: 11, height: 11 }} />}
-                                            {scheduleViewBy === 'teacher' ? s.roomName : s.teacherName}
-                                          </div>
-                                        </>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </React.Fragment>
-                            ))}
-                          </div>
-                        </div>
+            <div style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', gap: 20 }}>
+              {/* ── Conflict sidebar ── */}
+              {conflictMode && optimizationResult && optimizationResult.unassigned.length > 0 && (
+                <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px' }}>
+                    <Zap style={{ width: 14, height: 14 }} /> Cursos sin asignar ({optimizationResult.unassigned.length})
+                  </div>
+                  {optimizationResult.unassigned.map((u, i) => (
+                    <div key={u.assignmentId || i}
+                      draggable
+                      onDragStart={e => handleDragStart(e, { type: 'unassigned', data: u })}
+                      style={{ background: 'white', border: '2px dashed #fca5a5', borderRadius: 12, padding: 12, cursor: 'grab', userSelect: 'none' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#991b1b', marginBottom: 4 }}>{u.courseName}</div>
+                      <div style={{ fontSize: 11.5, color: '#64748b', marginBottom: 2 }}>
+                        Docente: {u.teacherName}
                       </div>
-                    );
-                  })}
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>
+                        Horas requeridas: {u.requiredHours}
+                      </div>
+                      <div style={{ fontSize: 11, display: 'inline-flex', padding: '2px 8px', borderRadius: 6, background: '#fef2f2', color: '#b91c1c', fontWeight: 600, marginTop: 4 }}>
+                        {u.reason === 'no_teacher_competent' ? 'Docente sin competencia' :
+                         u.reason === 'no_teacher_availability' ? 'Docente sin disponibilidad' :
+                         u.reason === 'no_room_available' ? 'Sin aula disponible' :
+                         u.reason === 'partially_assigned' ? 'Asignación parcial' :
+                         u.reason}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: 11, color: '#94a3b8', padding: '8px 4px', textAlign: 'center', fontStyle: 'italic' }}>
+                    Arrastra un curso a una celda válida del horario para asignarlo
+                  </div>
                 </div>
               )}
+
+              {/* ── Schedule content ── */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {dragFeedback && (
+                  <div style={{ marginBottom: 12, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, background: dragFeedback.startsWith('✓') ? '#f0fdf4' : dragFeedback.startsWith('✗') ? '#fef2f2' : '#eff6ff', border: `1.5px solid ${dragFeedback.startsWith('✓') ? '#a7f3d0' : dragFeedback.startsWith('✗') ? '#fecaca' : '#bfdbfe'}`, color: dragFeedback.startsWith('✓') ? '#065f46' : dragFeedback.startsWith('✗') ? '#991b1b' : '#1d4ed8' }}>
+                    {dragFeedback}
+                  </div>
+                )}
+
+                {loadingSchedule ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontWeight: 600 }}>Cargando horario...</div>
+                ) : scheduleData.length === 0 && (!conflictMode || !optimizationResult?.unassigned?.length) ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#64748b', fontWeight: 600 }}>Este escenario no tiene sesiones asignadas aún.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
+                    {scheduleData.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>Sin sesiones asignadas todavía.</div>
+                    ) : (
+                      Array.from(new Set(scheduleData.map(s => scheduleViewBy === 'teacher' ? s.teacherName : s.roomName))).sort().map(entityName => {
+                        const sessions = scheduleData.filter(s => (scheduleViewBy === 'teacher' ? s.teacherName : s.roomName) === entityName);
+                        return (
+                          <div key={entityName} style={{ background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                            <div style={{ padding: '16px 20px', background: '#0f172a', color: 'white', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {scheduleViewBy === 'teacher' ? <Users style={{ width: 16, height: 16, color: '#94a3b8' }}/> : <Home style={{ width: 16, height: 16, color: '#94a3b8' }}/>}
+                              {entityName}
+                              <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.15)', padding: '4px 10px', borderRadius: 20 }}>
+                                {sessions.length} sesiones
+                              </span>
+                            </div>
+                            <div style={{ padding: 20 }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '65px repeat(5, 1fr)', gap: 8 }}>
+                                <div></div>
+                                {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(d => (
+                                  <div key={d} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#475569', paddingBottom: 10 }}>{d}</div>
+                                ))}
+                                {[0, 1, 2, 3, 4, 5, 6, 7].map(slot => (
+                                  <React.Fragment key={slot}>
+                                    <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
+                                      {SLOTS[slot]}
+                                    </div>
+                                    {[0, 1, 2, 3, 4].map(day => {
+                                      const s = sessions.find(x => x.day === day && x.slot === slot);
+                                      const isValid = draggedItem && isSlotValidForTeacher(
+                                        draggedItem.data.teacherId || draggedItem.data.id_docente, day, slot
+                                      );
+                                      const isHovered = hoveredDay === day && hoveredSlot === slot && isValid;
+
+                                      let bg = s ? '#f0fdf4' : '#f8fafc';
+                                      let border = s ? '#a7f3d0' : '#f1f5f9';
+                                      if (isHovered) { bg = '#fefce8'; border = '#facc15'; }
+                                      else if (draggedItem && isValid && !s) { border = '#86efac'; }
+
+                                      return (
+                                        <div key={`${day}-${slot}`}
+                                          {...(conflictMode ? {
+                                            onDragOver: e => handleDragOver(e, day, slot),
+                                            onDragLeave: handleDragLeave,
+                                            onDrop: e => handleDrop(e, day, slot),
+                                          } : {})}
+                                          style={{
+                                            background: bg,
+                                            border: `${isHovered ? 2.5 : 1.5}px solid ${border}`,
+                                            borderRadius: 12, padding: 10, minHeight: 72,
+                                            display: 'flex', flexDirection: 'column', gap: 3,
+                                            transition: 'all 0.15s',
+                                            cursor: conflictMode && !s ? 'copy' : s && conflictMode ? 'grab' : 'default',
+                                            opacity: draggedItem && !isValid && !s ? 0.4 : 1,
+                                            outline: isHovered ? '2px solid #eab308' : 'none',
+                                            outlineOffset: 1,
+                                          }}>
+                                          {s && (
+                                            <div draggable={conflictMode}
+                                              onDragStart={e => { e.stopPropagation(); handleDragStart(e, { type: 'assigned', data: s }); }}
+                                              style={{ cursor: conflictMode ? 'grab' : 'default', flex: 1, display: 'flex', flexDirection: 'column', gap: 3, userSelect: 'none' }}>
+                                              <div style={{ fontSize: 12, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{s.courseName}</div>
+                                              <div style={{ fontSize: 11, fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4, marginTop: 'auto' }}>
+                                                {scheduleViewBy === 'teacher' ? <Home style={{ width: 10, height: 10 }} /> : <Users style={{ width: 10, height: 10 }} />}
+                                                {scheduleViewBy === 'teacher' ? s.roomName : s.teacherName}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {isHovered && !s && (
+                                            <div style={{ fontSize: 10, fontWeight: 600, color: '#a16207', textAlign: 'center', marginTop: 'auto' }}>
+                                              Soltar aquí
+                                            </div>
+                                          )}
+                                          {!s && !draggedItem && conflictMode && (
+                                            <div style={{ fontSize: 10, color: '#cbd5e1', textAlign: 'center', marginTop: 'auto', paddingBottom: 4 }}>
+                                              Libre
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
