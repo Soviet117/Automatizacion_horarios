@@ -327,30 +327,23 @@ export default function EscenariosPage() {
     try {
       if (draggedItem.type === 'unassigned') {
         setDragFeedback('Asignando curso...');
-        // Check if this course already has a session (edit mode case)
-        const existingSession = scheduleData.find((s: any) => s.id_asignacion === draggedItem.data.assignmentId);
-        if (existingSession) {
-          await moveSessionToSlot(existingSession.id, day, slot);
-          setDragFeedback(`✓ "${draggedItem.data.courseName}" movido a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
-        } else {
-          await assignSessionToSlot(
-            sel.id,
-            draggedItem.data.assignmentId,
-            teacherId,
-            day,
-            slot,
-            draggedItem.data.tipo_bloque
-          );
-          setDragFeedback(`✓ "${draggedItem.data.courseName}" asignado a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
-          // Remove from unassigned list (conflict mode only)
-          setOptimizationResult(prev => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              unassigned: prev.unassigned.filter(u => u.assignmentId !== draggedItem.data.assignmentId)
-            };
-          });
-        }
+        await assignSessionToSlot(
+          sel.id,
+          draggedItem.data.assignmentId,
+          teacherId,
+          day,
+          slot,
+          draggedItem.data.tipo_bloque
+        );
+        setDragFeedback(`✓ "${draggedItem.data.courseName}" asignado a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
+        // Remove from unassigned list (conflict mode only)
+        setOptimizationResult(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            unassigned: prev.unassigned.filter(u => u.assignmentId !== draggedItem.data.assignmentId)
+          };
+        });
       } else {
         // Moving an existing session
         setDragFeedback('Moviendo sesión...');
