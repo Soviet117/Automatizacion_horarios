@@ -1,27 +1,29 @@
 #!/bin/sh
+
 set -e
 
-echo "=== Inicializando el sistema ==="
-
-npx prisma generate
-
-npx prisma migrate deploy
-
-echo "Verificando si es primera ejecucion..."
-COUNT=$(node -e "
-const { PrismaClient } = require('@prisma/client');
-const p = new PrismaClient();
-p.facultad.count().then(c => { console.log(c); p.\$disconnect(); }).catch(() => { console.log('0'); p.\$disconnect(); });
-")
-
-if [ "$COUNT" = "0" ]; then
-  echo "Primera ejecucion detectada - ejecutando seed..."
-  npx prisma db seed
-  echo "Seed completado."
-else
-  echo "Seed ya ejecutado previamente, saltando."
+if ! command -v node >/dev/null 2>&1; then
+    echo "ERROR: Node.js no está instalado"
+    exit 1
 fi
 
-echo "=== Inicio completado ==="
+if ! command -v npx >/dev/null 2>&1; then
+    echo "ERROR: npx no está disponible"
+    exit 1
+fi
+
+if npx prisma generate; then
+    echo "Prisma Client generado exitosamente"
+else
+    echo "Error al generar Prisma Client"
+    exit 1
+fi
+
+if npx prisma migrate deploy; then
+    echo "Migraciones aplicadas exitosamente"
+else
+    echo "Error al aplicar migraciones"
+    exit 1
+fi
 
 exec "$@"

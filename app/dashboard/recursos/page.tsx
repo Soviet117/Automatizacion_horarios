@@ -6,7 +6,7 @@ import { Teacher, Course } from '../../../lib/types';
 import { Users, Plus, Search, Edit2, Trash2, X, Clock, CheckCircle2, BrainCircuit } from 'lucide-react';
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-const SLOTS = ['07:00-09:00', '09:00-11:00', '11:00-13:00', '14:00-16:00', '16:00-18:00'];
+const SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:30', '15:45-17:15', '17:30-19:00', '19:10-20:40', '20:50-22:20'];
 
 const card: React.CSSProperties = { background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' };
 
@@ -94,6 +94,39 @@ export default function RecursosPage() {
       const i = d.indexOf(slot);
       if (i >= 0) d.splice(i, 1); else d.push(slot);
       return { ...prev, [day]: d };
+    });
+  };
+
+  const toggleRow = (slot: number) => {
+    setTempAvail(prev => {
+      const allOn = DAYS.every((_, di) => prev[di]?.includes(slot));
+      if (allOn) {
+        const next = { ...prev };
+        DAYS.forEach((_, di) => {
+          next[di] = (next[di] ?? []).filter(s => s !== slot);
+        });
+        return next;
+      } else {
+        const next = { ...prev };
+        DAYS.forEach((_, di) => {
+          const d = new Set(next[di] ?? []);
+          d.add(slot);
+          next[di] = [...d];
+        });
+        return next;
+      }
+    });
+  };
+
+  const toggleCol = (day: number) => {
+    setTempAvail(prev => {
+      const cur = new Set(prev[day] ?? []);
+      const allOn = SLOTS.every((_, si) => cur.has(si));
+      if (allOn) {
+        return { ...prev, [day]: [] };
+      } else {
+        return { ...prev, [day]: SLOTS.map((_, si) => si) };
+      }
     });
   };
 
@@ -261,6 +294,7 @@ export default function RecursosPage() {
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                         <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Horario</th>
                         {DAYS.map(d => <th key={d} style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{d.slice(0, 3)}</th>)}
+                        <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: 36 }}></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -278,8 +312,31 @@ export default function RecursosPage() {
                               </td>
                             );
                           })}
+                          <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                            <button type="button" onClick={() => toggleRow(si)}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 12, background: 'white', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}
+                              title="Seleccionar / deseleccionar toda la fila">
+                              ⤓
+                            </button>
+                          </td>
                         </tr>
                       ))}
+                      <tr>
+                        <td style={{ padding: '6px 14px' }}></td>
+                        {DAYS.map((_, di) => {
+                          const allOn = SLOTS.every((_, si) => tempAvail[di]?.includes(si));
+                          return (
+                            <td key={di} style={{ padding: '6px 8px', textAlign: 'center' }}>
+                              <button type="button" onClick={() => toggleCol(di)}
+                                style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 12, background: allOn ? '#10b981' : 'white', color: allOn ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}
+                                title="Seleccionar / deseleccionar toda la columna">
+                                ⤓
+                              </button>
+                            </td>
+                          );
+                        })}
+                        <td style={{ padding: '6px 4px' }}></td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>

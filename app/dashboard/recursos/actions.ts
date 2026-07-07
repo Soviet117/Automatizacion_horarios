@@ -65,11 +65,14 @@ export async function createDocente(data: { dni: string, nombre: string, apellid
   }
 
   const horarios = [
-    { i: 0, start: '07:00', end: '09:00' },
-    { i: 1, start: '09:00', end: '11:00' },
-    { i: 2, start: '11:00', end: '13:00' },
-    { i: 3, start: '14:00', end: '16:00' },
-    { i: 4, start: '16:00', end: '18:00' }
+    { i: 0, start: '07:00', end: '08:20' },
+    { i: 1, start: '08:30', end: '10:00' },
+    { i: 2, start: '10:15', end: '11:45' },
+    { i: 3, start: '12:00', end: '13:30' },
+    { i: 4, start: '15:45', end: '17:15' },
+    { i: 5, start: '17:30', end: '19:00' },
+    { i: 6, start: '19:10', end: '20:40' },
+    { i: 7, start: '20:50', end: '22:20' }
   ];
   for (const h of horarios) {
     await prisma.bloque_horario.upsert({

@@ -23,17 +23,19 @@ model carrera {
 }
 
 model plan_estudio {
-  id_plan    String  @id(map: "plan_estudio_pk") @default(uuid()) @db.VarChar
-  nom_plan   String  @db.VarChar
-  id_carrera String  @db.VarChar
+  id_plan    String     @id(map: "plan_estudio_pk") @default(uuid()) @db.VarChar
+  nom_plan   String     @db.VarChar
+  id_carrera String     @db.VarChar
   curso      curso[]
-  carrera    carrera @relation(fields: [id_carrera], references: [id_carrera], onDelete: Cascade, map: "plan_estudio_carrera_fk")
+  carrera    carrera    @relation(fields: [id_carrera], references: [id_carrera], onDelete: Cascade, map: "plan_estudio_carrera_fk")
+  escenario  escenario[]
 }
 
 model ciclo {
-  id_ciclo  Int     @id(map: "ciclo_pk")
-  nom_ciclo String  @db.VarChar
+  id_ciclo  Int         @id(map: "ciclo_pk")
+  nom_ciclo String      @db.VarChar
   curso     curso[]
+  escenario escenario[]
 }
 
 model tipo_sesion {
@@ -208,6 +210,10 @@ model escenario {
   conflictos     Int      @default(0)
   creado_el      DateTime @default(now())
   creado_por     String?  @db.VarChar
-  
+  id_ciclo       Int?     @db.Integer
+  id_plan        String?  @db.VarChar
+
+  ciclo          ciclo?          @relation(fields: [id_ciclo], references: [id_ciclo], map: "escenario_ciclo_fk")
+  plan           plan_estudio?   @relation(fields: [id_plan], references: [id_plan], map: "escenario_plan_estudio_fk")
   horario_sesion horario_sesion[]
 }

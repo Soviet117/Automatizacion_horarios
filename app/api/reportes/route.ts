@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       }
     });
 
-    const maxBloquesSemana = 5 * 5; // Suposición: 5 bloques por día, 5 días
+    const maxBloquesSemana = 8 * 5; // 8 bloques por día, 5 días
 
     const roomUsageData = aulas.map(a => {
       const assigned = a.horario_sesion.length;
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
       return {
         name: `${d.nom_docente.split(' ')[0]} ${d.ape_docente.split(' ')[0]}`,
         assigned: assigned,
-        max: 25 // 5 bloques × 5 días
+        max: 40 // 8 bloques × 5 días
       }
     }).filter(d => d.assigned > 0).sort((a, b) => b.assigned - a.assigned).slice(0, 10);
 
