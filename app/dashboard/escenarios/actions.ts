@@ -142,36 +142,46 @@ export async function assignSessionToSlot(
   const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
   if (!periodo) throw new Error('No hay periodo académico activo');
 
+  // Load asignacion with curso info
+  const asignacion = await prisma.asignacion.findUnique({
+    where: { id_asignacion },
+    include: { curso: true }
+  });
+  if (!asignacion) throw new Error('Asignación no encontrada.');
+  const cohortId = `${asignacion.curso.id_carrera}-${asignacion.curso.id_ciclo}`;
+
   // 1. Check teacher availability
   const disp = await prisma.disponibilidad_docente.findFirst({
     where: { id_docente, id_dia, id_bloque }
   });
   if (!disp) throw new Error('El docente no tiene disponibilidad en ese horario.');
 
-  // 2. Check teacher collision
+  // 2. Check teacher collision (with course name)
   const teacherCollision = await prisma.horario_sesion.findFirst({
-    where: {
-      id_escenario,
-      id_docente,
-      id_dia,
-      id_bloque,
-      NOT: { id_asignacion }
+    where: { id_escenario, id_docente, id_dia, id_bloque },
+    include: { asignacion: { include: { curso: true } } }
+  });
+  if (teacherCollision) {
+    throw new Error(`El docente ya dicta "${teacherCollision.asignacion.curso.nom_curso}" en este bloque.`);
+  }
+
+  // 3. Check cohort collision (same carrera-ciclo can't have two classes at same time)
+  const cohortSessions = await prisma.horario_sesion.findMany({
+    where: { id_escenario, id_dia, id_bloque },
+    include: { asignacion: { include: { curso: true } } }
+  });
+  for (const cs of cohortSessions) {
+    const existingCohort = `${cs.asignacion.curso.id_carrera}-${cs.asignacion.curso.id_ciclo}`;
+    if (existingCohort === cohortId) {
+      throw new Error(`Este bloque está siendo ocupado por "${cs.asignacion.curso.nom_curso}" del mismo ciclo. Los alumnos no pueden estar en dos cursos simultáneamente.`);
     }
-  });
-  if (teacherCollision) throw new Error('El docente ya tiene una sesión en ese horario.');
+  }
 
-  // 3. Find available room (capacity >= students, not occupied)
-  const asignacion = await prisma.asignacion.findUnique({
-    where: { id_asignacion },
-    include: { curso: true }
-  });
-  if (!asignacion) throw new Error('Asignación no encontrada.');
-
+  // 4. Find available room (with collision info)
   const estudiantes = asignacion.curso.alumnos || 30;
-
   const occupiedRooms = await prisma.horario_sesion.findMany({
     where: { id_escenario, id_dia, id_bloque },
-    select: { id_aula: true }
+    include: { aula: true, asignacion: { include: { curso: true } } }
   });
   const occupiedIds = new Set(occupiedRooms.map(r => r.id_aula));
 
@@ -182,9 +192,15 @@ export async function assignSessionToSlot(
     },
     orderBy: { capacidad: 'asc' }
   });
-  if (!availableRoom) throw new Error('No hay aulas disponibles con capacidad suficiente en ese horario.');
+  if (!availableRoom) {
+    // Build a detailed message about occupied rooms
+    const roomDetails = occupiedRooms.map(r =>
+      `"${r.aula.nom_aula}" ocupada por "${r.asignacion.curso.nom_curso}"`
+    ).join(', ');
+    throw new Error(`No hay aulas libres con capacidad para ${estudiantes} alumnos en este bloque. ${roomDetails ? 'Aulas ocupadas: ' + roomDetails : ''}`);
+  }
 
-  // 4. Create session
+  // 5. Create session
   const session = await prisma.horario_sesion.create({
     data: {
       id_horario: crypto.randomUUID(),
@@ -200,7 +216,7 @@ export async function assignSessionToSlot(
     }
   });
 
-  // 5. Update coverage
+  // 6. Update coverage
   await updateEscenarioCoverage(id_escenario, periodo.id_periodo);
 
   revalidatePath('/dashboard/escenarios');
@@ -244,13 +260,15 @@ export async function moveSessionToSlot(
     throw new Error('Solo puedes mover sesiones en escenarios Borrador o Simulación.');
   }
 
+  const cohortId = `${session.asignacion.curso.id_carrera}-${session.asignacion.curso.id_ciclo}`;
+
   // Check teacher availability
   const disp = await prisma.disponibilidad_docente.findFirst({
     where: { id_docente: session.id_docente, id_dia, id_bloque }
   });
   if (!disp) throw new Error('El docente no tiene disponibilidad en ese horario.');
 
-  // Check teacher collision (excluding self)
+  // Check teacher collision with course name (excluding self)
   const teacherCollision = await prisma.horario_sesion.findFirst({
     where: {
       id_escenario: session.id_escenario,
@@ -258,11 +276,31 @@ export async function moveSessionToSlot(
       id_dia,
       id_bloque,
       NOT: { id_horario }
-    }
+    },
+    include: { asignacion: { include: { curso: true } } }
   });
-  if (teacherCollision) throw new Error('El docente ya tiene una sesión en ese horario.');
+  if (teacherCollision) {
+    throw new Error(`El docente ya dicta "${teacherCollision.asignacion.curso.nom_curso}" en este bloque.`);
+  }
 
-  // Find available room
+  // Check cohort collision (excluding self)
+  const cohortSessions = await prisma.horario_sesion.findMany({
+    where: {
+      id_escenario: session.id_escenario,
+      id_dia,
+      id_bloque,
+      NOT: { id_horario }
+    },
+    include: { asignacion: { include: { curso: true } } }
+  });
+  for (const cs of cohortSessions) {
+    const existingCohort = `${cs.asignacion.curso.id_carrera}-${cs.asignacion.curso.id_ciclo}`;
+    if (existingCohort === cohortId) {
+      throw new Error(`Este bloque está siendo ocupado por "${cs.asignacion.curso.nom_curso}" del mismo ciclo. Los alumnos no pueden estar en dos cursos simultáneamente.`);
+    }
+  }
+
+  // Find available room with collision info
   const estudiantes = session.asignacion.curso.alumnos || 30;
   const occupiedRooms = await prisma.horario_sesion.findMany({
     where: {
@@ -271,7 +309,7 @@ export async function moveSessionToSlot(
       id_bloque,
       NOT: { id_horario }
     },
-    select: { id_aula: true }
+    include: { aula: true, asignacion: { include: { curso: true } } }
   });
   const occupiedIds = new Set(occupiedRooms.map(r => r.id_aula));
 
@@ -282,7 +320,12 @@ export async function moveSessionToSlot(
     },
     orderBy: { capacidad: 'asc' }
   });
-  if (!availableRoom) throw new Error('No hay aulas disponibles con capacidad suficiente en ese horario.');
+  if (!availableRoom) {
+    const roomDetails = occupiedRooms.map(r =>
+      `"${r.aula.nom_aula}" ocupada por "${r.asignacion.curso.nom_curso}"`
+    ).join(', ');
+    throw new Error(`No hay aulas libres con capacidad para ${estudiantes} alumnos en este bloque. ${roomDetails ? 'Aulas ocupadas: ' + roomDetails : ''}`);
+  }
 
   // Update session
   await prisma.horario_sesion.update({

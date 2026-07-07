@@ -594,10 +594,10 @@ export default function EscenariosPage() {
               </div>
             </div>
             
-            <div style={{ padding: 24, overflowY: 'auto', flex: 1, display: 'flex', gap: 20 }}>
-              {/* ── Conflict sidebar ── */}
+            <div style={{ padding: 24, flex: 1, display: 'flex', gap: 20, overflow: 'hidden', minHeight: 0 }}>
+              {/* ── Conflict sidebar (sticky) ── */}
               {conflictMode && optimizationResult && optimizationResult.unassigned.length > 0 && (
-                <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 0, alignSelf: 'flex-start', maxHeight: '100%', overflowY: 'auto' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px' }}>
                     <Zap style={{ width: 14, height: 14 }} /> Cursos sin asignar ({optimizationResult.unassigned.length})
                   </div>
@@ -628,8 +628,8 @@ export default function EscenariosPage() {
                 </div>
               )}
 
-              {/* ── Schedule content ── */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              {/* ── Schedule content (scrollable) ── */}
+              <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', maxHeight: '100%' }}>
                 {dragFeedback && (
                   <div style={{ marginBottom: 12, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, background: dragFeedback.startsWith('✓') ? '#f0fdf4' : dragFeedback.startsWith('✗') ? '#fef2f2' : '#eff6ff', border: `1.5px solid ${dragFeedback.startsWith('✓') ? '#a7f3d0' : dragFeedback.startsWith('✗') ? '#fecaca' : '#bfdbfe'}`, color: dragFeedback.startsWith('✓') ? '#065f46' : dragFeedback.startsWith('✗') ? '#991b1b' : '#1d4ed8' }}>
                     {dragFeedback}
