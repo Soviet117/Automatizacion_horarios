@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { TIPO_AULA_MAP_BY_NAME } from './tipoAulaMap';
 
 interface OptimizationRequest {
   teachers: any[];
@@ -7,6 +8,7 @@ interface OptimizationRequest {
   days: number;
   slots_per_day: number;
   relaxed: boolean;
+  tipo_aula_map?: Record<string, string[]>;
 }
 
 interface CompetenciaDocente {
@@ -48,7 +50,9 @@ export class SchedulerService {
           competencia_docente: true
         }
       }),
-      prisma.aula.findMany(),
+      prisma.aula.findMany({
+        include: { tipo_aula: true }
+      }),
       prisma.asignacion.findMany({
         where: {
           id_periodo: periodoActivo.id_periodo,
@@ -58,7 +62,7 @@ export class SchedulerService {
           }
         },
         include: {
-          curso: true,
+          curso: { include: { tipo_sesion: true } },
           periodo: true
         }
       })
@@ -82,29 +86,46 @@ export class SchedulerService {
 
     const rooms = aulasDB.map(a => ({
       id: a.id_aula,
-      capacity: a.capacidad
+      capacity: a.capacidad,
+      tipo_aula: a.tipo_aula.id_tipo_aula
     }));
 
-    const classes = asignacionesDB.map(a => ({
-      id: a.id_asignacion,
-      course_id: a.id_curso,
-      cohort_id: `${a.curso.id_carrera}-${a.curso.id_ciclo}`,
-      required_hours: (a.curso.horas_teoricas || 0) + (a.curso.horas_practicas || 0) || 4,
-      students_count: a.curso.alumnos || 30,
-      teacher_id: a.id_docente
-    }));
+    const classes = asignacionesDB.flatMap(a => {
+      const baseId = a.id_asignacion;
+      const ht = a.curso.horas_teoricas || 0;
+      const hp = a.curso.horas_practicas || 0;
+      const tipoCurso = a.curso.tipo_sesion?.nom_tipo_sesion || 'Teoría';
+      const blocks: any[] = [];
+      const total = ht + hp;
+
+      for (let i = 0; i < (total || 1); i++) {
+        const isTeorica = i < ht;
+        blocks.push({
+          id: `${baseId}~${isTeorica ? 'Teoría' : tipoCurso}~${i}`,
+          course_id: a.id_curso,
+          cohort_id: `${a.curso.id_carrera}-${a.curso.id_ciclo}`,
+          required_hours: 1,
+          students_count: a.curso.alumnos || 30,
+          teacher_id: a.id_docente,
+          tipo_sesion: isTeorica ? 'Teoría' : tipoCurso,
+        });
+      }
+      return blocks;
+    });
 
     SchedulerService.validateAssignmentCompetencies(docentesDB, asignacionesDB);
 
     const cspUrl = process.env.CSP_SOLVER_URL || 'http://localhost:8000';
 
+    const payload = { teachers, rooms, classes, days: 5, slots_per_day: 8, relaxed: false, tipo_aula_map: TIPO_AULA_MAP_BY_NAME };
+
     // Try hard constraints first
-    let data = await SchedulerService.callSolver(cspUrl, { teachers, rooms, classes, days: 5, slots_per_day: 8, relaxed: false });
+    let data = await SchedulerService.callSolver(cspUrl, payload);
 
     // If infeasible, retry in relaxed mode
     if (data.status === 'INFEASIBLE') {
       console.log('[Scheduler] Hard constraints infeasible, retrying in relaxed mode...');
-      data = await SchedulerService.callSolver(cspUrl, { teachers, rooms, classes, days: 5, slots_per_day: 8, relaxed: true });
+      data = await SchedulerService.callSolver(cspUrl, { ...payload, relaxed: true });
     }
 
     return await SchedulerService.saveResults(data, periodoActivo, asignacionesDB, userId, id_escenario);
@@ -156,18 +177,32 @@ export class SchedulerService {
       throw new Error('El motor CSP agotó el tiempo límite. Prueba reduciendo el número de clases.');
     }
 
+    // Build a lookup: compound class_id → { originalId, tipo_sesion, curso }
+    const classLookup = new Map<string, { originalId: string; tipoSesion: string; curso: any }>();
+    for (const a of asignacionesDB) {
+      const tipoCurso = a.curso.tipo_sesion?.nom_tipo_sesion || 'Teoría';
+      const ht = a.curso.horas_teoricas || 0;
+      const hp = a.curso.horas_practicas || 0;
+      const total = ht + hp;
+      for (let i = 0; i < (total || 1); i++) {
+        const isTeorica = i < ht;
+        const tipo = isTeorica ? 'Teoría' : tipoCurso;
+        classLookup.set(`${a.id_asignacion}~${tipo}~${i}`, { originalId: a.id_asignacion, tipoSesion: tipo, curso: a.curso });
+      }
+    }
+
     // Map unassigned data with course and teacher names
     const unassigned = unassignedRaw.map((u: any) => {
-      const asignacion = asignacionesDB.find((a: any) => a.id_asignacion === u.class_id);
+      const lookup = classLookup.get(u.class_id);
       return {
-        courseName: asignacion?.curso?.nom_curso ?? u.course_id,
+        courseName: lookup?.curso?.nom_curso ?? u.course_id,
         teacherName: '', // filled below
         teacherId: u.teacher_id,
         assignmentId: u.class_id,
         courseId: u.course_id,
         reason: u.reason,
         requiredHours: u.required_hours,
-        cohortId: asignacion ? `${asignacion.curso.id_carrera}-${asignacion.curso.id_ciclo}` : ''
+        cohortId: lookup ? `${lookup.curso.id_carrera}-${lookup.curso.id_ciclo}` : ''
       };
     });
 
@@ -201,18 +236,23 @@ export class SchedulerService {
         });
       }
 
-      const newSessions = sessions.map((s: any) => ({
-        id_horario: crypto.randomUUID(),
-        id_asignacion: s.class_id,
-        id_docente: s.teacher_id,
-        id_aula: s.room_id,
-        id_dia: s.day,
-        id_bloque: s.slot,
-        id_periodo: periodoActivo.id_periodo,
-        tipo_sesion: asignacionesDB.find((a: any) => a.id_asignacion === s.class_id)?.curso?.tipo_curso ?? 'Teórica',
-        id_usuario: null,
-        id_escenario: targetEscenarioId
-      }));
+      const newSessions = sessions.map((s: any) => {
+        const lookup = classLookup.get(s.class_id);
+        const originalId = lookup?.originalId || s.class_id;
+        const sessionTipo = lookup?.tipoSesion || 'Teoría';
+        return {
+          id_horario: crypto.randomUUID(),
+          id_asignacion: originalId,
+          id_docente: s.teacher_id,
+          id_aula: s.room_id,
+          id_dia: s.day,
+          id_bloque: s.slot,
+          id_periodo: periodoActivo.id_periodo,
+          tipo_sesion: sessionTipo,
+          id_usuario: null,
+          id_escenario: targetEscenarioId
+        };
+      });
 
       if (newSessions.length > 0) {
         await tx.horario_sesion.createMany({

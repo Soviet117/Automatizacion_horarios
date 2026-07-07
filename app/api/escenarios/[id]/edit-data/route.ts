@@ -118,7 +118,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     const tiposSesion = await prisma.tipo_sesion.findMany();
     const tipoMapping: Record<string, string[]> = {};
     for (const ts of tiposSesion) {
-      tipoMapping[ts.id_tipo_sesion] = TIPO_AULA_MAP_BY_NAME[ts.nom_tipo_sesion] || ['TA01'];
+      tipoMapping[ts.id_tipo_sesion] = TIPO_AULA_MAP_BY_NAME[ts.nom_tipo_sesion] || ['classroom'];
     }
 
     return NextResponse.json({

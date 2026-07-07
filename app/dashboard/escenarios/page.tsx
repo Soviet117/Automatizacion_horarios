@@ -65,6 +65,7 @@ export default function EscenariosPage() {
     aulas: any[];
     tipoMapping: Record<string, string[]>;
   } | null>(null);
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
   // Create form state
   const [newName, setNewName] = useState('');
@@ -251,6 +252,38 @@ export default function EscenariosPage() {
     }
   };
 
+  // ── Block generation helpers ──────────────────────────────────────────────
+  function generateBlocks(asignacion: any) {
+    const blocks: { id: string; tipoSesion: string; label: string; roomLabel: string }[] = [];
+    const tipoCurso = asignacion.curso.nom_tipo_sesion;
+    const ht = asignacion.curso.horas_teoricas || 0;
+    const hp = asignacion.curso.horas_practicas || 0;
+    const roomNames: Record<string, string> = {
+      'Teoría': 'Aula Teórica',
+      'Práctica': 'Aula Teórica',
+      'Lab. Cómputo': 'Lab. Cómputo',
+      'Taller': 'Taller Especializado',
+    };
+    let idx = 0;
+    for (let i = 0; i < ht; i++) {
+      blocks.push({
+        id: `${asignacion.id_asignacion}-T${i}`,
+        tipoSesion: 'Teoría',
+        label: `${++idx} · Teoría`,
+        roomLabel: roomNames['Teoría'],
+      });
+    }
+    for (let i = 0; i < hp; i++) {
+      blocks.push({
+        id: `${asignacion.id_asignacion}-P${i}`,
+        tipoSesion: tipoCurso,
+        label: `${++idx} · ${tipoCurso}`,
+        roomLabel: roomNames[tipoCurso] || 'Aula Teórica',
+      });
+    }
+    return blocks;
+  }
+
   // ── Drag & Drop handlers ──────────────────────────────────────────────────
   const isSlotValidForTeacher = (teacherId: string, day: number, slot: number) => {
     const ta = teachersAvail[teacherId];
@@ -305,7 +338,8 @@ export default function EscenariosPage() {
             draggedItem.data.assignmentId,
             teacherId,
             day,
-            slot
+            slot,
+            draggedItem.data.tipo_bloque
           );
           setDragFeedback(`✓ "${draggedItem.data.courseName}" asignado a ${SLOTS[slot]} ${['Lunes','Martes','Miércoles','Jueves','Viernes'][day]}`);
           // Remove from unassigned list (conflict mode only)
@@ -642,7 +676,7 @@ export default function EscenariosPage() {
                   </button>
                 </div>
                 )}
-                <button onClick={() => { setScheduleModal(false); setConflictMode(false); setEditMode(false); setDraggedItem(null); setDragFeedback(''); setEditData(null); }} style={{ padding: 8, border: 'none', background: '#f1f5f9', borderRadius: 10, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X style={{ width: 16, height: 16 }} /></button>
+                <button onClick={() => { setScheduleModal(false); setConflictMode(false); setEditMode(false); setDraggedItem(null); setDragFeedback(''); setEditData(null); setExpandedCourse(null); }} style={{ padding: 8, border: 'none', background: '#f1f5f9', borderRadius: 10, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X style={{ width: 16, height: 16 }} /></button>
               </div>
             </div>
             
@@ -687,24 +721,67 @@ export default function EscenariosPage() {
                     <BookOpen style={{ width: 14, height: 14 }} /> Cursos ({editData.asignaciones.length})
                   </div>
                   {editData.asignaciones.map((a: any) => {
-                    const isAssigned = scheduleData.some((s: any) => s.id_asignacion === a.id_asignacion);
+                    const blocks = generateBlocks(a);
+                    const totalSessions = scheduleData.filter((s: any) => s.id_asignacion === a.id_asignacion).length;
+                    const remaining = blocks.length - totalSessions;
+                    const isExpanded = expandedCourse === a.id_asignacion;
                     return (
-                      <div key={a.id_asignacion}
-                        draggable
-                        onDragStart={e => handleDragStart(e, { type: 'unassigned', data: { ...a, assignmentId: a.id_asignacion, teacherId: a.id_docente, courseName: a.curso.nom_curso, teacherName: a.docente.nom_docente } })}
-                        style={{ background: 'white', border: `2px ${isAssigned ? 'solid #a7f3d0' : 'dashed #fca5a5'}`, borderRadius: 12, padding: 12, cursor: 'grab', userSelect: 'none' }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{a.curso.nom_curso}</div>
-                        <div style={{ fontSize: 11.5, color: '#64748b', marginBottom: 2 }}>
-                          Docente: {a.docente.nom_docente}
+                      <div key={a.id_asignacion} style={{ background: 'white', border: `2px solid ${totalSessions === blocks.length ? '#a7f3d0' : '#e2e8f0'}`, borderRadius: 12, overflow: 'hidden', userSelect: 'none' }}>
+                        {/* Course header */}
+                        <div onClick={() => setExpandedCourse(isExpanded ? null : a.id_asignacion)}
+                          style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer' }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{a.curso.nom_curso}</div>
+                          <div style={{ fontSize: 11.5, color: '#64748b' }}>
+                            Docente: {a.docente.nom_docente}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11, display: 'inline-flex', padding: '2px 8px', borderRadius: 6, background: '#f1f5f9', color: '#475569', fontWeight: 600 }}>
+                              {a.curso.horas_teoricas || 0}T + {a.curso.horas_practicas || 0}P = {blocks.length} bloques
+                            </span>
+                            <span style={{ fontSize: 11, display: 'inline-flex', padding: '2px 8px', borderRadius: 6, background: remaining === 0 ? '#f0fdf4' : '#fef2f2', color: remaining === 0 ? '#065f46' : '#b91c1c', fontWeight: 600 }}>
+                              {remaining === 0 ? `${blocks.length}/${blocks.length} asignadas` : `${totalSessions}/${blocks.length}`}
+                            </span>
+                          </div>
                         </div>
-                        <div style={{ fontSize: 11, display: 'inline-flex', padding: '2px 8px', borderRadius: 6, background: isAssigned ? '#f0fdf4' : '#fef2f2', color: isAssigned ? '#065f46' : '#b91c1c', fontWeight: 600, marginTop: 4 }}>
-                          {a.curso.nom_tipo_sesion} · {isAssigned ? 'Asignado' : 'Pendiente'}
-                        </div>
+                        {/* Expandable blocks */}
+                        {isExpanded && (
+                          <div style={{ borderTop: '1px solid #f1f5f9', padding: '8px 12px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {blocks.map((b, bi) => {
+                              const assignedAtThisTipo = scheduleData.filter((s: any) => s.id_asignacion === a.id_asignacion && (s.tipo_sesion === b.tipoSesion || s.tipo_sesion === b.tipoSesion));
+                              const isUsed = bi < totalSessions;
+                              return (
+                                <div key={b.id}
+                                  draggable={!isUsed}
+                                  onDragStart={e => {
+                                    if (isUsed) { e.preventDefault(); return; }
+                                    handleDragStart(e, { type: 'unassigned', data: { ...a, assignmentId: a.id_asignacion, teacherId: a.id_docente, courseName: a.curso.nom_curso, teacherName: a.docente.nom_docente, tipo_bloque: b.tipoSesion } });
+                                  }}
+                                  style={{
+                                    padding: '8px 10px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8,
+                                    background: isUsed ? '#f1f5f9' : '#f8fafc',
+                                    border: `1px solid ${isUsed ? '#e2e8f0' : '#cbd5e1'}`,
+                                    cursor: isUsed ? 'default' : 'grab',
+                                    opacity: isUsed ? 0.6 : 1,
+                                    fontSize: 12,
+                                  }}>
+                                  <span style={{ width: 18, height: 18, borderRadius: 4, background: isUsed ? '#e2e8f0' : '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                                    {bi + 1}
+                                  </span>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, color: isUsed ? '#94a3b8' : '#0f172a' }}>{b.label}</div>
+                                    <div style={{ fontSize: 10, color: isUsed ? '#cbd5e1' : '#64748b' }}>→ {b.roomLabel}</div>
+                                  </div>
+                                  {isUsed && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>✓</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                   <div style={{ fontSize: 11, color: '#94a3b8', padding: '8px 4px', textAlign: 'center', fontStyle: 'italic' }}>
-                    Arrastra un curso a una celda válida para asignarlo a ese horario
+                    Arrastra un bloque a una celda válida para asignarlo
                   </div>
                 </div>
               )}

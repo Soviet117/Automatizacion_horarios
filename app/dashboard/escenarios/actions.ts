@@ -186,8 +186,8 @@ export async function assignSessionToSlot(
   });
   const occupiedIds = new Set(occupiedRooms.map(r => r.id_aula));
 
-  const tipoNombre = asignacion.curso.tipo_sesion.nom_tipo_sesion;
-  const tiposPermitidos = TIPO_AULA_MAP_BY_NAME[tipoNombre] || ['TA01'];
+  const tipoNombre = tipo_sesion ?? asignacion.curso.tipo_sesion.nom_tipo_sesion;
+  const tiposPermitidos = TIPO_AULA_MAP_BY_NAME[tipoNombre] || ['classroom'];
 
   const availableRoom = await prisma.aula.findFirst({
     where: {

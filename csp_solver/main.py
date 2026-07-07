@@ -21,10 +21,12 @@ class CohortClass(BaseModel):
     required_hours: int
     students_count: int
     teacher_id: str
+    tipo_sesion: str = 'Teoría'
 
 class Room(BaseModel):
     id: str
     capacity: int
+    tipo_aula: str = 'TA01'
 
 class OptimizationRequest(BaseModel):
     teachers: List[Teacher]
@@ -33,6 +35,7 @@ class OptimizationRequest(BaseModel):
     days: int = 5
     slots_per_day: int = 5
     relaxed: bool = False
+    tipo_aula_map: Dict[str, List[str]] = {}
 
 class AssignedSession(BaseModel):
     class_id: str
@@ -100,7 +103,8 @@ def build_model(req: OptimizationRequest):
             ))
             continue
 
-        eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count]
+        tipos_permitidos = req.tipo_aula_map.get(c.tipo_sesion, ['TA01'])
+        eligible_rooms = [r for r in req.rooms if r.capacity >= c.students_count and r.tipo_aula in tipos_permitidos]
         if not eligible_rooms:
             eligible_rooms = [r for r in req.rooms if r.capacity == max_cap]
             if not eligible_rooms:
