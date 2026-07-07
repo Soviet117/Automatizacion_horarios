@@ -351,13 +351,17 @@ export async function moveSessionToSlot(
 }
 
 async function updateEscenarioCoverage(id_escenario: string, id_periodo: string) {
-  const [totalAsignaciones, sesionesAsignadas] = await Promise.all([
-    prisma.asignacion.count({
+  const escenario = await prisma.escenario.findUnique({ where: { id_escenario }, select: { id_ciclo: true } });
+  const [asignaciones, sesionesAsignadas] = await Promise.all([
+    prisma.asignacion.findMany({
       where: {
         id_periodo,
         curso: {
-          id_ciclo: (await prisma.escenario.findUnique({ where: { id_escenario }, select: { id_ciclo: true } }))?.id_ciclo ?? undefined
+          id_ciclo: escenario?.id_ciclo ?? undefined
         }
+      },
+      include: {
+        curso: { select: { horas_teoricas: true, horas_practicas: true } }
       }
     }),
     prisma.horario_sesion.count({
@@ -365,10 +369,9 @@ async function updateEscenarioCoverage(id_escenario: string, id_periodo: string)
     })
   ]);
 
-  // Simple coverage: assigned / (total * avg_hours_per_course)
-  // We use a heuristic: each course needs ~4 sessions on average
-  const estimatedTotal = totalAsignaciones * 4;
-  const coverage = estimatedTotal > 0 ? Math.min(Math.round((sesionesAsignadas / estimatedTotal) * 100), 100) : 0;
+  // Coverage: assigned_sessions / sum(horas_teoricas + horas_practicas) across all asignaciones
+  const totalRequerido = asignaciones.reduce((sum, a) => sum + (a.curso.horas_teoricas || 0) + (a.curso.horas_practicas || 0) || 1, 0);
+  const coverage = totalRequerido > 0 ? Math.min(Math.round((sesionesAsignadas / totalRequerido) * 100), 100) : 0;
   const conflicts = Math.max(0, 100 - coverage);
 
   await prisma.escenario.update({
