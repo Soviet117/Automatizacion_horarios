@@ -62,6 +62,16 @@ export default function ConfiguracionPage() {
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('light');
   const [idioma, setIdioma] = useState('es');
 
+  // CSP
+  const [csp, setCsp] = useState({
+    dias_por_semana: 5,
+    bloques_por_dia: 8,
+    horas_max_por_profesor: 40,
+    timeout_segundos: 60,
+    modo_relajado: false,
+    sesiones_max_por_dia_profesor: 1,
+  });
+
   // Avatar
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>('');
@@ -97,6 +107,23 @@ export default function ConfiguracionPage() {
               setLang(p.apariencia.idioma as 'es' | 'en');
             }
           }
+        }
+      })
+      .catch(() => {});
+
+    // Load CSP config
+    fetch('/api/configuracion/csp')
+      .then(r => r.json())
+      .then(data => {
+        if (data && !data.error) {
+          setCsp({
+            dias_por_semana: data.dias_por_semana ?? 5,
+            bloques_por_dia: data.bloques_por_dia ?? 8,
+            horas_max_por_profesor: data.horas_max_por_profesor ?? 40,
+            timeout_segundos: data.timeout_segundos ?? 60,
+            modo_relajado: data.modo_relajado ?? false,
+            sesiones_max_por_dia_profesor: data.sesiones_max_por_dia_profesor ?? 1,
+          });
         }
       })
       .catch(() => {});
@@ -196,6 +223,28 @@ export default function ConfiguracionPage() {
       } else {
         setThemeGlobal(theme);
         setLang(idioma as 'es' | 'en');
+        showToast();
+      }
+    } catch {
+      setError(t('errors.connectionError'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveCsp = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/configuracion/csp', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(csp),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || t('errors.connectionError'));
+      } else {
         showToast();
       }
     } catch {
@@ -445,6 +494,52 @@ export default function ConfiguracionPage() {
                   <AlertTriangle style={{ width: 15, height: 15, flexShrink: 0, marginTop: 1 }} />
                   <span>{t('settings.system.warning')}</span>
                 </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div>
+                    <label style={labelStyle}>{t('settings.system.diasPorSemana')}</label>
+                    <select value={csp.dias_por_semana} onChange={e => setCsp(p => ({ ...p, dias_por_semana: Number(e.target.value) }))} style={inputStyle}>
+                      {[5, 6, 7].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>{t('settings.system.bloquesPorDia')}</label>
+                    <select value={csp.bloques_por_dia} onChange={e => setCsp(p => ({ ...p, bloques_por_dia: Number(e.target.value) }))} style={inputStyle}>
+                      {Array.from({ length: 7 }, (_, i) => i + 4).map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>{t('settings.system.horasMaxProfesor')}</label>
+                    <input type="number" value={csp.horas_max_por_profesor} onChange={e => setCsp(p => ({ ...p, horas_max_por_profesor: Number(e.target.value) }))} style={inputStyle}
+                      onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
+                      onBlur={e => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; }}
+                      min={10} max={80} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>{t('settings.system.timeout')}</label>
+                    <input type="number" value={csp.timeout_segundos} onChange={e => setCsp(p => ({ ...p, timeout_segundos: Number(e.target.value) }))} style={inputStyle}
+                      onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
+                      onBlur={e => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; }}
+                      min={5} max={600} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>{t('settings.system.sesionesMaxDia')}</label>
+                    <select value={csp.sesiones_max_por_dia_profesor} onChange={e => setCsp(p => ({ ...p, sesiones_max_por_dia_profesor: Number(e.target.value) }))} style={inputStyle}>
+                      {[1, 2, 3].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', background: 'var(--bg-secondary)', borderRadius: 12, border: '1px solid var(--border-light)' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>{t('settings.system.modoRelajado')}</div>
+                    </div>
+                    <Toggle on={csp.modo_relajado} onChange={() => setCsp(p => ({ ...p, modo_relajado: !p.modo_relajado }))} />
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 28px', borderTop: '1px solid var(--border-light)', background: 'var(--bg-secondary)' }}>
+                <button onClick={handleSaveCsp} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--accent)', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
+                  <Save style={{ width: 15, height: 15 }} />{saving ? t('common.saving') : t('common.save')}
+                </button>
               </div>
             </>
           )}

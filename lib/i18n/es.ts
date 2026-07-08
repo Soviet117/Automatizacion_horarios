@@ -91,6 +91,12 @@ const es = {
       header: 'Configuración del Motor CSP',
       headerDesc: 'Parámetros avanzados del algoritmo de optimización.',
       warning: 'Cambios en estos parámetros afectan la calidad y velocidad de la generación de horarios.',
+      diasPorSemana: 'Días por semana',
+      bloquesPorDia: 'Bloques por día',
+      horasMaxProfesor: 'Horas máximas por profesor',
+      timeout: 'Tiempo máximo de ejecución (s)',
+      modoRelajado: 'Modo relajado por defecto',
+      sesionesMaxDia: 'Sesiones máx. por día por profesor',
     },
   },
   errors: {

@@ -21,6 +21,20 @@ interface DocenteWithCompetencias {
 }
 
 export class SchedulerService {
+  private static async getCspConfig() {
+    const config = await prisma.configuracion_csp.findUnique({
+      where: { id: 'global' }
+    });
+    return config ?? {
+      dias_por_semana: 5,
+      bloques_por_dia: 8,
+      horas_max_por_profesor: 40,
+      timeout_segundos: 60,
+      modo_relajado: false,
+      sesiones_max_por_dia_profesor: 1,
+    };
+  }
+
   static async optimizeSchedule(userId: string, id_escenario?: string) {
     const periodoActivo = await prisma.periodo_academico.findFirst({
       where: { activo: true }
@@ -74,9 +88,11 @@ export class SchedulerService {
 
     console.log(`[Scheduler] Periodo activo: ${periodoActivo.id_periodo}, Asignaciones a resolver: ${asignacionesDB.length}`);
 
+    const cspConfig = await SchedulerService.getCspConfig();
+
     const teachers = docentesDB.map(d => ({
       id: d.id_docente,
-      max_hours: 40,
+      max_hours: cspConfig.horas_max_por_profesor,
       availabilities: d.disponibilidad_docente.map(disp => ({
         day: disp.id_dia,
         slot: disp.id_bloque
@@ -117,7 +133,15 @@ export class SchedulerService {
 
     const cspUrl = process.env.CSP_SOLVER_URL || 'http://localhost:8000';
 
-    const payload = { teachers, rooms, classes, days: 5, slots_per_day: 8, relaxed: false, tipo_aula_map: TIPO_AULA_MAP_BY_NAME };
+    const payload = {
+      teachers, rooms, classes,
+      days: cspConfig.dias_por_semana,
+      slots_per_day: cspConfig.bloques_por_dia,
+      relaxed: cspConfig.modo_relajado,
+      tipo_aula_map: TIPO_AULA_MAP_BY_NAME,
+      timeout_segundos: cspConfig.timeout_segundos,
+      sesiones_max_por_dia_profesor: cspConfig.sesiones_max_por_dia_profesor,
+    };
 
     // Try hard constraints first
     let data = await SchedulerService.callSolver(cspUrl, payload);

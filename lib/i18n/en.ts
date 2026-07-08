@@ -93,6 +93,12 @@ const en: TranslationType = {
       header: 'CSP Engine Configuration',
       headerDesc: 'Advanced parameters of the optimization algorithm.',
       warning: 'Changes to these parameters affect the quality and speed of schedule generation.',
+      diasPorSemana: 'Days per week',
+      bloquesPorDia: 'Slots per day',
+      horasMaxProfesor: 'Max hours per teacher',
+      timeout: 'Solver timeout (s)',
+      modoRelajado: 'Default relaxed mode',
+      sesionesMaxDia: 'Max sessions per day per teacher',
     },
   },
   errors: {

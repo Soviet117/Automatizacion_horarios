@@ -243,3 +243,14 @@ model escenario {
   plan           plan_estudio?   @relation(fields: [id_plan], references: [id_plan], map: "escenario_plan_estudio_fk")
   horario_sesion horario_sesion[]
 }
+
+model configuracion_csp {
+  id                           String   @id @default("global")
+  dias_por_semana              Int      @default(5)
+  bloques_por_dia              Int      @default(8)
+  horas_max_por_profesor       Int      @default(40)
+  timeout_segundos             Int      @default(60)
+  modo_relajado                Boolean  @default(false)
+  sesiones_max_por_dia_profesor Int     @default(1)
+  updated_at                   DateTime @default(now()) @updatedAt
+}

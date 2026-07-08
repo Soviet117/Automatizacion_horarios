@@ -36,6 +36,8 @@ class OptimizationRequest(BaseModel):
     slots_per_day: int = 5
     relaxed: bool = False
     tipo_aula_map: Dict[str, List[str]] = {}
+    timeout_segundos: int = 60
+    sesiones_max_por_dia_profesor: int = 1
 
 class AssignedSession(BaseModel):
     class_id: str
@@ -134,7 +136,7 @@ def build_model(req: OptimizationRequest):
 
     return model, assign, unresolvable, teacher_avail, teachers_dict
 
-def add_constraints(model, assign, req, relaxed):
+def add_constraints(model, assign, req, relaxed, sesiones_max_por_dia):
     # CONSTRAINT 1: Each class scheduled required_hours times
     for c in req.classes:
         class_vars = [v for k, v in assign.items() if k[0] == c.id]
@@ -178,13 +180,12 @@ def add_constraints(model, assign, req, relaxed):
         if tvars:
             model.Add(sum(tvars) <= t.max_hours)
 
-    # CONSTRAINT 6: Professor at most 1 session per day
-    # Changed from == 1 to <= 1 to allow teachers with <5 days availability
+    # CONSTRAINT 6: Professor at most N sessions per day
     for t in req.teachers:
         for d in range(req.days):
             tvars = [v for k, v in assign.items() if k[1] == t.id and k[3] == d]
             if tvars:
-                model.Add(sum(tvars) <= 1)
+                model.Add(sum(tvars) <= sesiones_max_por_dia)
 
     # If relaxed mode, add objective to maximize assigned hours
     if relaxed:
@@ -267,10 +268,10 @@ async def optimize_schedule(request: Request):
             ).model_dump()
 
         # Add constraints
-        add_constraints(model, assign, req, req.relaxed)
+        add_constraints(model, assign, req, req.relaxed, req.sesiones_max_por_dia_profesor)
 
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 60.0
+        solver.parameters.max_time_in_seconds = req.timeout_segundos
         status_code = solver.Solve(model)
 
         if status_code in (cp_model.OPTIMAL, cp_model.FEASIBLE):

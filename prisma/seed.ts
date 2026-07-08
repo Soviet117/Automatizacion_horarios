@@ -181,6 +181,13 @@ async function main() {
     }
   });
 
+  // 10. Configuración CSP por defecto
+  await prisma.configuracion_csp.upsert({
+    where: { id: 'global' },
+    create: { id: 'global' },
+    update: {},
+  });
+
   console.log('Seed completado con éxito.');
 }
 
