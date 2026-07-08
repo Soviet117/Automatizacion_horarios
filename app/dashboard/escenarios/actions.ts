@@ -234,6 +234,7 @@ export async function removeSession(id_horario: string) {
     select: { id_escenario: true }
   });
   if (!session) throw new Error('Sesión no encontrada.');
+  if (!session.id_escenario) throw new Error('La sesión no pertenece a un escenario.');
 
   await prisma.horario_sesion.delete({ where: { id_horario } });
 
@@ -257,6 +258,7 @@ export async function moveSessionToSlot(
     include: { asignacion: { include: { curso: { include: { tipo_sesion: true } } } } }
   });
   if (!session) throw new Error('Sesión no encontrada.');
+  if (!session.id_escenario) throw new Error('La sesión no pertenece a un escenario.');
 
   const escenario = await prisma.escenario.findUnique({
     where: { id_escenario: session.id_escenario }

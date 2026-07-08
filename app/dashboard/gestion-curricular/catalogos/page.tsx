@@ -136,8 +136,8 @@ export default function CatalogosPage() {
   const renderTable = () => {
     if (loading || !masterData) return <div style={{ padding: 40, textAlign: 'center' }}>Cargando datos...</div>;
 
-    let items = [];
-    let columns = [];
+    let items: any[] = [];
+    let columns: { key: string; label: string }[] = [];
     let idKey = '';
 
     if (activeTab === 'facultades') {

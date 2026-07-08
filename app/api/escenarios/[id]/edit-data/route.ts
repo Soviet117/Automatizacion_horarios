@@ -24,8 +24,8 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       where: {
         id_periodo: periodo.id_periodo,
         curso: {
-          ...(escenario.id_ciclo !== undefined ? { id_ciclo: escenario.id_ciclo } : {}),
-          ...(escenario.id_plan !== undefined ? { id_plan: escenario.id_plan } : {}),
+          ...(escenario.id_ciclo != null ? { id_ciclo: escenario.id_ciclo } : {}),
+          ...(escenario.id_plan != null ? { id_plan: escenario.id_plan } : {}),
         }
       },
       include: {
@@ -85,8 +85,8 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         competencia_docente: {
           some: {
             curso: {
-              ...(escenario.id_ciclo !== undefined ? { id_ciclo: escenario.id_ciclo } : {}),
-              ...(escenario.id_plan !== undefined ? { id_plan: escenario.id_plan } : {}),
+              ...(escenario.id_ciclo != null ? { id_ciclo: escenario.id_ciclo } : {}),
+              ...(escenario.id_plan != null ? { id_plan: escenario.id_plan } : {}),
             }
           }
         }

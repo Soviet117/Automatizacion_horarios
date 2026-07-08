@@ -25,7 +25,6 @@ interface Session {
   slot: number;   // 0…7
   course: string;
   teacher: string;
-  teacher: string;
   room: string;
   tipo: string;
   id_aula?: string; // needed for modal default value

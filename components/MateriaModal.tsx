@@ -236,7 +236,7 @@ export default function MateriaModal({ isOpen, onClose, onSave, materia, maestro
                     style={{ width: '100%', padding: '12px 16px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, fontSize: 14, color: '#0f172a', outline: 'none' }} />
                 </div>
                 <div style={{ position: 'relative' }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <label style={{ display: 'flex', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, alignItems: 'center', gap: 4 }}>
                     <Users style={{ width: 14, height: 14, color: '#ec4899' }} /> Alumnos
                   </label>
                   <input type="number" min="0" required name="alumnos" value={formData.alumnos} onChange={handleChange}

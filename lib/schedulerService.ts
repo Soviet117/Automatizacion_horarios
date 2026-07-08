@@ -263,7 +263,7 @@ export class SchedulerService {
 
     // Fill teacher names from DB
     if (unassigned.length > 0) {
-      const teacherIds = [...new Set(unassigned.map((u: any) => u.teacherId))];
+      const teacherIds = [...new Set(unassigned.map((u: any) => u.teacherId))] as string[];
       const teachers = await prisma.docente.findMany({
         where: { id_docente: { in: teacherIds } },
         select: { id_docente: true, nom_docente: true, ape_docente: true }

@@ -8,8 +8,10 @@ node_modules/
 
 # Next.js
 .next/
+.next-build/
 out/
 build/
+tmp/
 
 # Prisma
 prisma/*.db

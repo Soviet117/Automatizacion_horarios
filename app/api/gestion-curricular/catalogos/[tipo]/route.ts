@@ -107,10 +107,10 @@ export async function PUT(req: Request, props: { params: Promise<{ tipo: string 
 }
 
 export async function DELETE(req: Request, props: { params: Promise<{ tipo: string }> }) {
+  const params = await props.params;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    const params = await props.params;
     const tipo = params.tipo;
 
     if (!id) {
