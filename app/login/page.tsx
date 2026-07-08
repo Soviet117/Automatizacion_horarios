@@ -58,7 +58,7 @@ export default function LoginPage() {
       if (!res.ok) {
         setServerError(data.error || 'Ocurrió un error');
       } else {
-        login({ username: data.username, name: data.name, role: data.role });
+        login({ id: data.id, username: data.username, name: data.name, role: data.role });
       }
     } catch {
       setServerError('Error de conexión con el servidor');

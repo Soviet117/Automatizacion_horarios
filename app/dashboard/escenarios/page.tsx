@@ -5,6 +5,7 @@ import {
   Layers, Plus, Copy, Trash2, CheckCircle2, Clock, Archive,
   ArrowRight, X, GitBranch, Zap, Calendar, Users, Home, BookOpen
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { getEscenarios, createEscenario, deleteEscenario, publishEscenario, duplicateEscenario, runOptimizationForEscenario, assignSessionToSlot, removeSession, moveSessionToSlot } from './actions';
 
 type ScenarioStatus = 'published' | 'draft' | 'simulation';
@@ -36,6 +37,7 @@ const card: React.CSSProperties = { background: 'white', borderRadius: 16, borde
 const SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:30', '15:45-17:15', '17:30-19:00', '19:10-20:40', '20:50-22:20'];
 
 export default function EscenariosPage() {
+  const { user } = useAuth();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
@@ -112,7 +114,7 @@ export default function EscenariosPage() {
   };
 
   const loadData = async () => {
-    const data = await getEscenarios();
+    const data = await getEscenarios(user?.id);
     setScenarios(data);
     if (data.length > 0 && !selected) {
       setSelected(data[0].id);
@@ -127,6 +129,7 @@ export default function EscenariosPage() {
         name: newName,
         description: newDesc,
         type: newType,
+        userId: user?.id,
         id_ciclo: selectedCicloId as number,
         id_plan: selectedPlanId,
       });

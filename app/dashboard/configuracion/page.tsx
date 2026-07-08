@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
   User, Lock, Bell, Palette, Shield, Globe, Eye, EyeOff,
-  Save, Check, ChevronRight, Sun, Moon, Monitor, Mail, Phone, Building2, AlertTriangle
+  Save, Check, ChevronRight, Sun, Moon, Monitor, Mail, Phone, Building2, AlertTriangle, Camera, X
 } from 'lucide-react';
 
 type Section = 'perfil' | 'seguridad' | 'notificaciones' | 'apariencia' | 'sistema';
@@ -40,15 +40,155 @@ export default function ConfiguracionPage() {
   const [section, setSection] = useState<Section>('perfil');
   const [showPw, setShowPw] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('light');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Perfil
+  const [profile, setProfile] = useState({ nombre: '', email: '', telefono: '', departamento: '', avatar_url: '' });
+
+  // Seguridad
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+
+  // Notificaciones
   const [notifs, setNotifs] = useState({ conflictos: true, publicacion: true, semanal: false, email: true });
-  const [csp, setCsp] = useState({ maxTime: 60, hardConflict: true, softConflict: true, balanceLoad: true, preferMorning: false });
 
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2800); };
+  // Apariencia
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('light');
+  const [idioma, setIdioma] = useState('es');
 
-  // Sanitize display name — avoid showing raw UUIDs
-  const displayName = user?.name && user.name.length > 30 ? 'Usuario' : (user?.name ?? 'Usuario');
-  const displayUser = user?.username && user.username.length > 20 ? 'admin' : (user?.username ?? 'admin');
+  // Avatar
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+
+  const userId = user?.id;
+
+  // Load profile on mount
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`/api/auth/profile?userId=${userId}`)
+      .then(r => r.json())
+      .then(data => {
+        const av = data.avatar_url || '';
+        setProfile({
+          nombre: data.nombre || '',
+          email: data.email || '',
+          telefono: data.telefono || '',
+          departamento: data.departamento || '',
+          avatar_url: av,
+        });
+        if (av) setAvatarPreview(av);
+        if (data.preferencias) {
+          const p = data.preferencias;
+          if (p.notificaciones) setNotifs(prev => ({ ...prev, ...p.notificaciones }));
+          if (p.apariencia) {
+            if (p.apariencia.theme) setTheme(p.apariencia.theme);
+            if (p.apariencia.idioma) setIdioma(p.apariencia.idioma);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError('La imagen no debe superar 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      setAvatarPreview(b64);
+      setProfile(prev => ({ ...prev, avatar_url: b64 }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarPreview('');
+    setProfile(p => ({ ...p, avatar_url: '' }));
+  };
+
+  const showToast = () => {
+    setError('');
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2800);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!userId) return;
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ...profile }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || 'Error al guardar');
+      } else {
+        showToast();
+      }
+    } catch {
+      setError('Error de conexión');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSavePassword = async () => {
+    if (!userId) return;
+    if (pwNew !== pwConfirm) { setError('Las contraseñas no coinciden'); return; }
+    if (pwNew.length < 6) { setError('La nueva contraseña debe tener al menos 6 caracteres'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, currentPassword: pwCurrent, newPassword: pwNew }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || 'Error al actualizar');
+      } else {
+        setPwCurrent(''); setPwNew(''); setPwConfirm('');
+        showToast();
+      }
+    } catch {
+      setError('Error de conexión');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSavePreferences = async () => {
+    if (!userId) return;
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, preferencias: { notificaciones: notifs, apariencia: { theme, idioma } } }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || 'Error al guardar');
+      } else {
+        showToast();
+      }
+    } catch {
+      setError('Error de conexión');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const card: React.CSSProperties = { background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' };
 
@@ -98,55 +238,62 @@ export default function ConfiguracionPage() {
                 <div style={{ fontSize: 13, color: '#64748b', marginTop: 3 }}>Tu información personal y de contacto.</div>
               </div>
               <div style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 22 }}>
-                {/* Avatar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px', background: '#f8fafc', borderRadius: 14, border: '1px solid #f1f5f9' }}>
-                  <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #475569, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 22, flexShrink: 0 }}>
-                    {displayName.charAt(0).toUpperCase()}
+                  <div style={{ position: 'relative', width: 56, height: 56, flexShrink: 0 }}>
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="Avatar" style={{ width: 56, height: 56, borderRadius: 16, objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #475569, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 22 }}>
+                        {(profile.nombre || user?.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      style={{ position: 'absolute', bottom: -4, right: -4, width: 24, height: 24, borderRadius: '50%', background: '#0f172a', border: '2px solid white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', padding: 0 }}>
+                      <Camera style={{ width: 12, height: 12 }} />
+                    </button>
                   </div>
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{displayName}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{profile.nombre || user?.name || 'Usuario'}</div>
                     <div style={{ fontSize: 13, color: '#64748b', textTransform: 'capitalize', marginTop: 2 }}>{user?.role ?? 'user'}</div>
+                    {avatarPreview && (
+                      <button type="button" onClick={handleRemoveAvatar} style={{ fontSize: 12, color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', padding: 0, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <X style={{ width: 12, height: 12 }} /> Eliminar foto
+                      </button>
+                    )}
                   </div>
-                  <button style={{ fontSize: 13.5, fontWeight: 600, color: '#3b82f6', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>Cambiar foto</button>
                 </div>
 
-                {/* Fields */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
                     <label style={labelStyle}><User style={{ width: 14, height: 14, color: '#94a3b8' }} />Nombre Completo</label>
-                    <input type="text" defaultValue={displayName} style={inputStyle}
-                      onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
-                      onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}><User style={{ width: 14, height: 14, color: '#94a3b8' }} />Nombre de Usuario</label>
-                    <input type="text" defaultValue={displayUser} style={inputStyle}
+                    <input type="text" value={profile.nombre} onChange={e => setProfile(p => ({ ...p, nombre: e.target.value }))} style={inputStyle}
                       onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
                       onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
                   </div>
                   <div>
                     <label style={labelStyle}><Mail style={{ width: 14, height: 14, color: '#94a3b8' }} />Correo Electrónico</label>
-                    <input type="email" defaultValue={`${displayUser}@uni.edu`} style={inputStyle}
+                    <input type="email" value={profile.email} onChange={e => setProfile(p => ({ ...p, email: e.target.value }))} style={inputStyle}
                       onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
                       onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
                   </div>
                   <div>
                     <label style={labelStyle}><Phone style={{ width: 14, height: 14, color: '#94a3b8' }} />Teléfono (opcional)</label>
-                    <input type="tel" placeholder="+52 555 000 0000" style={inputStyle}
+                    <input type="tel" value={profile.telefono} onChange={e => setProfile(p => ({ ...p, telefono: e.target.value }))} placeholder="+52 555 000 0000" style={inputStyle}
                       onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
                       onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
                   </div>
-                  <div style={{ gridColumn: '1/-1' }}>
+                  <div>
                     <label style={labelStyle}><Building2 style={{ width: 14, height: 14, color: '#94a3b8' }} />Departamento / Área</label>
-                    <input type="text" placeholder="Ej. Coordinación Académica" style={inputStyle}
+                    <input type="text" value={profile.departamento} onChange={e => setProfile(p => ({ ...p, departamento: e.target.value }))} placeholder="Ej. Coordinación Académica" style={inputStyle}
                       onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
                       onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
                   </div>
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 28px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                <button onClick={save} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  <Save style={{ width: 15, height: 15 }} />Guardar Cambios
+                <button onClick={handleSaveProfile} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
+                  <Save style={{ width: 15, height: 15 }} />{saving ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </>
@@ -163,7 +310,7 @@ export default function ConfiguracionPage() {
                 <div>
                   <label style={labelStyle}><Lock style={{ width: 14, height: 14, color: '#94a3b8' }} />Contraseña Actual</label>
                   <div style={{ position: 'relative' }}>
-                    <input type={showPw ? 'text' : 'password'} placeholder="••••••••" style={{ ...inputStyle, paddingRight: 44 }}
+                    <input type={showPw ? 'text' : 'password'} value={pwCurrent} onChange={e => setPwCurrent(e.target.value)} placeholder="••••••••" style={{ ...inputStyle, paddingRight: 44 }}
                       onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
                       onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
                     <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}>
@@ -173,13 +320,13 @@ export default function ConfiguracionPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Nueva Contraseña</label>
-                  <input type="password" placeholder="Mín. 8 caracteres" style={inputStyle}
+                  <input type="password" value={pwNew} onChange={e => setPwNew(e.target.value)} placeholder="Mín. 6 caracteres" style={inputStyle}
                     onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
                     onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
                 </div>
                 <div>
                   <label style={labelStyle}>Confirmar Nueva Contraseña</label>
-                  <input type="password" placeholder="Repite la contraseña" style={inputStyle}
+                  <input type="password" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} placeholder="Repite la contraseña" style={inputStyle}
                     onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
                     onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
                 </div>
@@ -189,8 +336,8 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 28px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                <button onClick={save} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  <Lock style={{ width: 15, height: 15 }} />Actualizar Contraseña
+                <button onClick={handleSavePassword} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
+                  <Lock style={{ width: 15, height: 15 }} />{saving ? 'Actualizando...' : 'Actualizar Contraseña'}
                 </button>
               </div>
             </>
@@ -220,8 +367,8 @@ export default function ConfiguracionPage() {
                 ))}
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 28px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                <button onClick={save} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  <Save style={{ width: 15, height: 15 }} />Guardar Preferencias
+                <button onClick={handleSavePreferences} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
+                  <Save style={{ width: 15, height: 15 }} />{saving ? 'Guardando...' : 'Guardar Preferencias'}
                 </button>
               </div>
             </>
@@ -257,15 +404,15 @@ export default function ConfiguracionPage() {
                 </div>
                 <div>
                   <label style={{ ...labelStyle, marginBottom: 8 }}><Globe style={{ width: 14, height: 14, color: '#94a3b8' }} />Idioma de la Interfaz</label>
-                  <select style={{ ...inputStyle, width: 240 }}>
+                  <select value={idioma} onChange={e => setIdioma(e.target.value)} style={{ ...inputStyle, width: 240 }}>
                     <option value="es">Español</option>
                     <option value="en">English</option>
                   </select>
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 28px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                <button onClick={save} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  <Save style={{ width: 15, height: 15 }} />Aplicar Cambios
+                <button onClick={handleSavePreferences} disabled={saving} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.6 : 1 }}>
+                  <Save style={{ width: 15, height: 15 }} />{saving ? 'Guardando...' : 'Aplicar Cambios'}
                 </button>
               </div>
             </>
@@ -283,33 +430,6 @@ export default function ConfiguracionPage() {
                   <AlertTriangle style={{ width: 15, height: 15, flexShrink: 0, marginTop: 1 }} />
                   <span>Cambios en estos parámetros afectan la calidad y velocidad de la generación de horarios.</span>
                 </div>
-                <div>
-                  <label style={labelStyle}>Tiempo Máximo de Búsqueda (segundos)</label>
-                  <input type="number" value={csp.maxTime} min={10} max={300}
-                    onChange={e => setCsp(p => ({ ...p, maxTime: +e.target.value }))} style={{ ...inputStyle, width: 180 }}
-                    onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.1)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#e2e8f0'; e.target.style.boxShadow = 'none'; }} />
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>El solucionador se detendrá al alcanzar este límite y retornará la mejor solución encontrada.</div>
-                </div>
-                {([
-                  { key: 'hardConflict' as const, label: 'Restricciones Duras (Hard)', desc: 'Nunca asignar un docente a dos clases simultáneas. No negociable.' },
-                  { key: 'softConflict' as const, label: 'Restricciones Suaves (Soft)', desc: 'Preferir que los docentes no tengan huecos de más de 2 horas.' },
-                  { key: 'balanceLoad' as const, label: 'Balancear Carga Docente', desc: 'Distribuir equitativamente las horas entre todos los docentes.' },
-                  { key: 'preferMorning' as const, label: 'Preferir Horario Matutino', desc: 'Dar prioridad a asignaciones en turnos de mañana.' },
-                ]).map(s => (
-                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px 18px', background: '#f8fafc', borderRadius: 12, border: '1px solid #f1f5f9' }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginBottom: 3 }}>{s.label}</div>
-                      <div style={{ fontSize: 12.5, color: '#64748b' }}>{s.desc}</div>
-                    </div>
-                    <Toggle on={csp[s.key]} onChange={() => setCsp(p => ({ ...p, [s.key]: !p[s.key] }))} />
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 28px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                <button onClick={save} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#0f172a', color: 'white', padding: '10px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  <Save style={{ width: 15, height: 15 }} />Guardar Configuración
-                </button>
               </div>
             </>
           )}
@@ -317,9 +437,21 @@ export default function ConfiguracionPage() {
         </div>
       </div>
 
+      {error && (
+        <div style={{
+          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', alignItems: 'center', gap: 10, background: '#dc2626', color: 'white',
+          padding: '12px 22px', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 200,
+          fontSize: 14, fontWeight: 600,
+        }}>
+          <AlertTriangle style={{ width: 15, height: 15, flexShrink: 0 }} />
+          {error}
+        </div>
+      )}
+
       {/* Toast */}
       <div style={{
-        position: 'fixed', bottom: 28, left: '50%', transform: `translateX(-50%) translateY(${saved ? 0 : 12}px)`,
+        position: 'fixed', bottom: error ? 80 : 28, left: '50%', transform: `translateX(-50%) translateY(${saved ? 0 : 12}px)`,
         display: 'flex', alignItems: 'center', gap: 10, background: '#0f172a', color: 'white',
         padding: '12px 22px', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', zIndex: 200,
         opacity: saved ? 1 : 0, transition: 'all 0.3s', pointerEvents: saved ? 'auto' : 'none', fontSize: 14, fontWeight: 600,

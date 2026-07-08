@@ -11,6 +11,7 @@ import {
   Clock, TrendingUp, CalendarDays, ArrowUpRight, ArrowDownRight,
   Layers, BarChart3, Sparkles, GraduationCap, Timer
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface ApiCurso {
   id_curso: string;
@@ -95,6 +96,7 @@ function SkeletonCard({ height = 120 }: { height?: number }) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [cursos, setCursos] = useState<ApiCurso[]>([]);
   const [docentes, setDocentes] = useState<ApiDocente[]>([]);
   const [aulas, setAulas] = useState<ApiAula[]>([]);
@@ -105,12 +107,14 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
 
   const fetchData = useCallback(async () => {
+    const u = user?.id ?? '';
+    const query = u ? `?userId=${u}` : '';
     try {
       const [cursosRes, docentesRes, aulasRes, horariosRes] = await Promise.allSettled([
-        fetch('/api/cursos').then(r => r.ok ? r.json() : []),
-        fetch('/api/docentes').then(r => r.ok ? r.json() : []),
-        fetch('/api/aulas').then(r => r.ok ? r.json() : []),
-        fetch('/api/horarios').then(r => r.ok ? r.json() : []),
+        fetch(`/api/cursos${query}`).then(r => r.ok ? r.json() : []),
+        fetch(`/api/docentes${query}`).then(r => r.ok ? r.json() : []),
+        fetch(`/api/aulas${query}`).then(r => r.ok ? r.json() : []),
+        fetch(`/api/horarios${query}`).then(r => r.ok ? r.json() : []),
       ]);
       if (cursosRes.status === 'fulfilled') setCursos(cursosRes.value);
       if (docentesRes.status === 'fulfilled') setDocentes(docentesRes.value);
@@ -122,7 +126,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchData();

@@ -184,6 +184,10 @@ model usuario {
   password       String           @db.VarChar
   nombre         String           @db.VarChar
   role           String           @default("user") @db.VarChar
+  telefono       String?          @db.VarChar
+  departamento   String?          @db.VarChar
+  avatar_url     String?          @db.Text
+  preferencias   Json?            @db.JsonB
   aula           aula[]
   curso          curso[]
   docente        docente[]

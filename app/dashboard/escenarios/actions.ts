@@ -4,8 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { TIPO_AULA_MAP_BY_NAME } from '@/lib/tipoAulaMap';
 
-export async function getEscenarios() {
+export async function getEscenarios(userId?: string) {
+  const where = userId ? { creado_por: userId } : {};
   const escenarios = await prisma.escenario.findMany({
+    where,
     include: {
       ciclo: true,
       plan: true
