@@ -176,21 +176,21 @@ export default function CatalogosPage() {
 
     if (items.length === 0) {
       return (
-        <div style={{ padding: 60, textAlign: 'center', background: 'white', borderRadius: 20, border: '1px dashed #cbd5e1' }}>
-          <Layers style={{ width: 48, height: 48, color: '#cbd5e1', margin: '0 auto 16px' }} />
-          <h3 style={{ margin: '0 0 8px', fontSize: 18, color: '#475569' }}>No se encontraron registros</h3>
-          <p style={{ margin: 0, color: '#94a3b8', fontSize: 14 }}>Agrega un nuevo registro para comenzar.</p>
+        <div style={{ padding: 60, textAlign: 'center', background: 'var(--bg-card)', borderRadius: 20, border: '1px dashed var(--border-color)' }}>
+          <Layers style={{ width: 48, height: 48, color: 'var(--text-tertiary)', margin: '0 auto 16px' }} />
+          <h3 style={{ margin: '0 0 8px', fontSize: 18, color: 'var(--text-secondary)' }}>No se encontraron registros</h3>
+          <p style={{ margin: 0, color: 'var(--text-tertiary)', fontSize: 14 }}>Agrega un nuevo registro para comenzar.</p>
         </div>
       );
     }
 
     return (
-      <div style={{ background: 'white', borderRadius: 20, border: '1px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+      <div style={{ background: 'var(--bg-card)', borderRadius: 20, border: '1px solid var(--border-light)', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
-            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+            <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
               {columns.map(col => (
-                <th key={col.key} style={{ padding: '16px 24px', fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th key={col.key} style={{ padding: '16px 24px', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {col.label}
                 </th>
               ))}
@@ -201,19 +201,19 @@ export default function CatalogosPage() {
             {items.map((item: any, i: number) => {
               const id = item[idKey];
               return (
-                <tr key={id} style={{ borderBottom: i === items.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                <tr key={id} style={{ borderBottom: i === items.length - 1 ? 'none' : '1px solid var(--border-light)' }}>
                   {columns.map(col => (
-                    <td key={col.key} style={{ padding: '16px 24px', fontSize: 14, color: '#0f172a' }}>
+                    <td key={col.key} style={{ padding: '16px 24px', fontSize: 14, color: 'var(--text-primary)' }}>
                       {item[col.key]}
                     </td>
                   ))}
                   <td style={{ padding: '16px 24px', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <button onClick={() => handleOpenModal(item)} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f8fafc', color: '#3b82f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; }} onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; }}>
+                    <button onClick={() => handleOpenModal(item)} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'var(--bg-secondary)', color: '#3b82f6', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; }} onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}>
                       <Pencil style={{ width: 14, height: 14 }} />
                     </button>
-                    <button onClick={() => handleDelete(id)} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: '#f8fafc', color: '#ef4444', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; }} onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; }}>
+                    <button onClick={() => handleDelete(id)} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'var(--bg-secondary)', color: '#ef4444', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; }} onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}>
                       <Trash2 style={{ width: 14, height: 14 }} />
                     </button>
                   </td>
@@ -231,8 +231,8 @@ export default function CatalogosPage() {
       return (
         <>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre de la Facultad</label>
-            <input required type="text" placeholder="Ej: Facultad de Ingeniería" value={formData.nom_facultad || ''} onChange={e => setFormData({ ...formData, nom_facultad: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Nombre de la Facultad</label>
+            <input required type="text" placeholder="Ej: Facultad de Ingeniería" value={formData.nom_facultad || ''} onChange={e => setFormData({ ...formData, nom_facultad: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none' }} />
           </div>
         </>
       );
@@ -242,12 +242,12 @@ export default function CatalogosPage() {
       return (
         <>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre de la Carrera</label>
-            <input required type="text" placeholder="Ej: Ingeniería de Software" value={formData.nom_carrera || ''} onChange={e => setFormData({ ...formData, nom_carrera: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Nombre de la Carrera</label>
+            <input required type="text" placeholder="Ej: Ingeniería de Software" value={formData.nom_carrera || ''} onChange={e => setFormData({ ...formData, nom_carrera: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none' }} />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Facultad</label>
-            <select required value={formData.id_facultad || ''} onChange={e => setFormData({ ...formData, id_facultad: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: 'white' }}>
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Facultad</label>
+            <select required value={formData.id_facultad || ''} onChange={e => setFormData({ ...formData, id_facultad: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none', background: 'var(--bg-card)' }}>
               <option value="">Selecciona una facultad...</option>
               {masterData?.facultades?.map((f: any) => <option key={f.id_facultad} value={f.id_facultad}>{f.nom_facultad}</option>)}
             </select>
@@ -260,8 +260,8 @@ export default function CatalogosPage() {
       return (
         <>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre (Descripción)</label>
-            <input required type="text" placeholder="Ej: Primer Ciclo" value={formData.nom_ciclo || ''} onChange={e => setFormData({ ...formData, nom_ciclo: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Nombre (Descripción)</label>
+            <input required type="text" placeholder="Ej: Primer Ciclo" value={formData.nom_ciclo || ''} onChange={e => setFormData({ ...formData, nom_ciclo: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none' }} />
           </div>
         </>
       );
@@ -271,12 +271,12 @@ export default function CatalogosPage() {
       return (
         <>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre del Plan</label>
-            <input required type="text" placeholder="Ej: Malla Curricular 2026" value={formData.nom_plan || ''} onChange={e => setFormData({ ...formData, nom_plan: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Nombre del Plan</label>
+            <input required type="text" placeholder="Ej: Malla Curricular 2026" value={formData.nom_plan || ''} onChange={e => setFormData({ ...formData, nom_plan: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none' }} />
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Carrera</label>
-            <select required value={formData.id_carrera || ''} onChange={e => setFormData({ ...formData, id_carrera: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: 'white' }}>
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Carrera</label>
+            <select required value={formData.id_carrera || ''} onChange={e => setFormData({ ...formData, id_carrera: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none', background: 'var(--bg-card)' }}>
               <option value="">Selecciona una carrera...</option>
               {masterData?.carreras?.map((c: any) => <option key={c.id_carrera} value={c.id_carrera}>{c.nom_carrera}</option>)}
             </select>
@@ -289,8 +289,8 @@ export default function CatalogosPage() {
       return (
         <>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#475569' }}>Nombre del Tipo</label>
-            <input required type="text" placeholder="Ej: Laboratorio" value={formData.nom_tipo_sesion || ''} onChange={e => setFormData({ ...formData, nom_tipo_sesion: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+            <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Nombre del Tipo</label>
+            <input required type="text" placeholder="Ej: Laboratorio" value={formData.nom_tipo_sesion || ''} onChange={e => setFormData({ ...formData, nom_tipo_sesion: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none' }} />
           </div>
         </>
       );
@@ -304,14 +304,14 @@ export default function CatalogosPage() {
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
-        <button onClick={() => router.push('/dashboard/gestion-curricular')} style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid #e2e8f0', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-          <ArrowLeft style={{ width: 20, height: 20, color: '#475569' }} />
+        <button onClick={() => router.push('/dashboard/gestion-curricular')} style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid var(--border-color)', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <ArrowLeft style={{ width: 20, height: 20, color: 'var(--text-secondary)' }} />
         </button>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>
             Catálogos Curriculares
           </h1>
-          <p style={{ margin: 0, color: '#64748b', fontSize: 15 }}>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: 15 }}>
             Administra Facultades, Carreras, Ciclos, Planes y Tipos de Sesión
           </p>
         </div>
@@ -330,17 +330,17 @@ export default function CatalogosPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14,
                   border: isActive ? `1.5px solid ${tab.color}` : '1.5px solid transparent',
-                  background: isActive ? 'white' : 'transparent',
-                  boxShadow: isActive ? '0 4px 12px rgba(0,0,0,0.03)' : 'none',
-                  color: isActive ? '#0f172a' : '#64748b',
+                  background: isActive ? 'var(--bg-card)' : 'transparent',
+                  boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                   fontSize: 14, fontWeight: isActive ? 700 : 500, cursor: 'pointer', textAlign: 'left',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f1f5f9'; }}
+                onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
               >
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: isActive ? tab.bg : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon style={{ width: 16, height: 16, color: isActive ? tab.color : '#94a3b8' }} />
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: isActive ? tab.bg : 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon style={{ width: 16, height: 16, color: isActive ? tab.color : 'var(--text-tertiary)' }} />
                 </div>
                 {tab.label}
               </button>
@@ -351,13 +351,13 @@ export default function CatalogosPage() {
         {/* Content Area */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
               {tabs.find(t => t.id === activeTab)?.label}
             </h2>
             <button onClick={handleOpenModal} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12,
               background: '#0f172a', border: 'none', color: 'white',
-              fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(15,23,42,0.2)',
+              fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: 'var(--shadow-md)',
               transition: 'transform 0.2s'
             }}
               onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
@@ -373,8 +373,8 @@ export default function CatalogosPage() {
       {/* Modal */}
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: 'white', width: '100%', maxWidth: 440, borderRadius: 24, padding: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
-            <h2 style={{ margin: '0 0 24px', fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
+          <div style={{ background: 'var(--bg-card)', width: '100%', maxWidth: 440, borderRadius: 24, padding: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ margin: '0 0 24px', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
               {editingId ? 'Editar Registro: ' : 'Nuevo Registro: '} {tabs.find(t => t.id === activeTab)?.label}
             </h2>
             <form onSubmit={handleSubmit}>
@@ -382,7 +382,7 @@ export default function CatalogosPage() {
               {renderModalContent()}
 
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button type="button" onClick={handleCloseModal} style={{ flex: 1, padding: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, color: '#475569', fontWeight: 600, cursor: 'pointer' }}>
+                <button type="button" onClick={handleCloseModal} style={{ flex: 1, padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>
                   Cancelar
                 </button>
                 <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: '12px', background: '#0f172a', border: 'none', borderRadius: 12, color: 'white', fontWeight: 600, cursor: 'pointer', opacity: isSubmitting ? 0.7 : 1 }}>

@@ -62,8 +62,8 @@ const COURSE_COLORS = [
 
 // ── Card style helper ──────────────────────────────────────────────────────
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e2e8f0',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-color)',
   borderRadius: 16,
   boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
 };
@@ -151,21 +151,21 @@ export default function HorariosPage() {
       {/* ── Header ── */}
       <div style={{ ...card, padding: '20px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.4px', margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             <Calendar style={{ width: 22, height: 22, color: '#6366f1' }} />
             Explorador de Horarios
           </h1>
-          <p style={{ fontSize: 13.5, color: '#64748b', margin: '4px 0 0' }}>
+          <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '4px 0 0' }}>
             Visualiza el horario publicado. Selecciona un escenario del historial para comparar.
           </p>
         </div>
-        <button onClick={loadData} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#f8fafc', color: '#475569', padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: '1.5px solid #e2e8f0', cursor: 'pointer', fontFamily: 'inherit' }}>
+        <button onClick={loadData} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: '1.5px solid var(--border-color)', cursor: 'pointer', fontFamily: 'inherit' }}>
           <RefreshCw style={{ width: 14, height: 14 }} /> Actualizar
         </button>
       </div>
 
       {loading && (
-        <div style={{ ...card, padding: 40, textAlign: 'center', color: '#64748b' }}>Cargando horarios…</div>
+        <div style={{ ...card, padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>Cargando horarios…</div>
       )}
       {error && (
         <div style={{ ...card, padding: 20, color: '#ef4444', display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -178,11 +178,11 @@ export default function HorariosPage() {
 
           {/* ── Historial de Versiones ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 4px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 4px' }}>
               Historial de versiones
             </div>
             {escenarios.length === 0 && (
-              <div style={{ ...card, padding: 20, textAlign: 'center', fontSize: 13, color: '#64748b' }}>
+              <div style={{ ...card, padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--text-secondary)' }}>
                 No hay escenarios publicados aún.<br />Ve a <strong>Escenarios</strong> para crear uno.
               </div>
             )}
@@ -192,29 +192,29 @@ export default function HorariosPage() {
               const isActive = selected === e.id;
               return (
                 <button key={e.id} onClick={() => setSelected(e.id)} style={{
-                  width: '100%', textAlign: 'left', background: 'white',
-                  border: `2px solid ${isActive ? '#6366f1' : '#e2e8f0'}`,
+                  width: '100%', textAlign: 'left', background: 'var(--bg-card)',
+                  border: `2px solid ${isActive ? '#6366f1' : 'var(--border-color)'}`,
                   borderRadius: 14, padding: '14px 16px', cursor: 'pointer', fontFamily: 'inherit',
-                  boxShadow: isActive ? '0 4px 14px rgba(99,102,241,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
+                  boxShadow: isActive ? '0 4px 14px rgba(99,102,241,0.15)' : 'var(--shadow-sm)',
                   transition: 'all 0.15s',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>{e.name}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{e.name}</div>
                     <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, fontSize: 11, fontWeight: 700 }}>
                       <Icon style={{ width: 10, height: 10 }} />{cfg.label}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#94a3b8', margin: '6px 0 8px' }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', margin: '6px 0 8px' }}>
                     {e.createdAt} · por {e.createdBy}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
                     <span>Cobertura</span>
                     <span style={{ color: e.coverage === 100 ? '#10b981' : '#f59e0b' }}>{e.coverage}%</span>
                   </div>
-                  <div style={{ height: 4, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ height: 4, background: 'var(--bg-tertiary)', borderRadius: 99, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${e.coverage}%`, background: e.coverage === 100 ? '#10b981' : '#f59e0b', borderRadius: 99 }} />
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
+                  <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
                     📋 {e.sessions.length} sesiones asignadas
                   </div>
                 </button>
@@ -229,8 +229,8 @@ export default function HorariosPage() {
                 {/* Scenario KPIs */}
                 <div style={{ ...card, padding: '16px 22px', display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{activeEscenario.name}</div>
-                    <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>{activeEscenario.name}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
                       {STATUS_CFG[activeEscenario.status]?.label} · {activeEscenario.sessions.length} sesiones · Cobertura {activeEscenario.coverage}%
                     </div>
                   </div>
@@ -248,7 +248,7 @@ export default function HorariosPage() {
 
                 {/* Calendar Grid */}
                 {activeEscenario.sessions.length === 0 ? (
-                  <div style={{ ...card, padding: 60, textAlign: 'center', color: '#94a3b8' }}>
+                  <div style={{ ...card, padding: 60, textAlign: 'center', color: 'var(--text-tertiary)' }}>
                     <Calendar style={{ width: 40, height: 40, margin: '0 auto 12px', opacity: 0.3 }} />
                     <div style={{ fontSize: 15, fontWeight: 600 }}>Este escenario no tiene sesiones</div>
                     <div style={{ fontSize: 13, marginTop: 4 }}>Ve a <strong>Escenarios</strong> y usa "Re-optimizar (CSP)" para generar el horario.</div>
@@ -257,24 +257,24 @@ export default function HorariosPage() {
                   <div style={{ ...card, overflow: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                       <thead>
-                        <tr style={{ background: '#f8fafc' }}>
-                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', border: '1px solid #f1f5f9', minWidth: 110 }}>Bloque</th>
+                        <tr style={{ background: 'var(--bg-secondary)' }}>
+                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', border: '1px solid var(--border-light)', minWidth: 110 }}>Bloque</th>
                           {DAYS.map(d => (
-                            <th key={d} style={{ padding: '12px 16px', textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#0f172a', border: '1px solid #f1f5f9' }}>{d}</th>
+                            <th key={d} style={{ padding: '12px 16px', textAlign: 'center', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', border: '1px solid var(--border-light)' }}>{d}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {SLOTS.map((sl, slotIdx) => (
                           <tr key={slotIdx}>
-                            <td style={{ padding: '10px 16px', fontSize: 12, fontWeight: 600, color: '#64748b', background: '#f8fafc', border: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: '10px 16px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-light)', whiteSpace: 'nowrap' }}>
                               {sl.label}
                             </td>
                             {DAYS.map((_, dayIdx) => {
                               const sess = grid[`${dayIdx}-${slotIdx}`];
                               const color = sess ? (courseColors[sess.course] ?? '#6366f1') : null;
                               return (
-                                <td key={dayIdx} style={{ padding: 6, border: '1px solid #f1f5f9', verticalAlign: 'top', minWidth: 140 }}>
+                                <td key={dayIdx} style={{ padding: 6, border: '1px solid var(--border-light)', verticalAlign: 'top', minWidth: 140 }}>
                                   {sess ? (
                                     <div 
                                       onClick={() => handleEditClick(sess)}
@@ -290,16 +290,16 @@ export default function HorariosPage() {
                                       onMouseEnter={(e) => activeEscenario.status === 'draft' && (e.currentTarget.style.transform = 'translateY(-2px)', e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)')}
                                       onMouseLeave={(e) => activeEscenario.status === 'draft' && (e.currentTarget.style.transform = 'none', e.currentTarget.style.boxShadow = 'none')}
                                     >
-                                      <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{sess.course}</div>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#475569' }}>
+                                      <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{sess.course}</div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)' }}>
                                         <User style={{ width: 10, height: 10 }} /> {sess.teacher}
                                       </div>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#475569', marginTop: 2 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
                                         <Home style={{ width: 10, height: 10 }} /> {sess.room}
                                       </div>
                                     </div>
                                   ) : (
-                                    <div style={{ height: 60, borderRadius: 8, background: '#fafafa' }} />
+                                    <div style={{ height: 60, borderRadius: 8, background: 'var(--bg-secondary)' }} />
                                   )}
                                 </td>
                               );
@@ -314,9 +314,9 @@ export default function HorariosPage() {
                 {/* Legend */}
                 {activeEscenario.sessions.length > 0 && (
                   <div style={{ ...card, padding: '14px 20px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Cursos:</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Cursos:</span>
                     {Array.from(new Set(activeEscenario.sessions.map(s => s.course))).map(course => (
-                      <span key={course} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155' }}>
+                      <span key={course} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-primary)' }}>
                         <span style={{ width: 10, height: 10, borderRadius: 3, background: courseColors[course] ?? '#6366f1', flexShrink: 0 }} />
                         {course}
                       </span>
@@ -325,7 +325,7 @@ export default function HorariosPage() {
                 )}
               </>
             ) : (
-              <div style={{ ...card, padding: 60, textAlign: 'center', color: '#94a3b8' }}>
+              <div style={{ ...card, padding: 60, textAlign: 'center', color: 'var(--text-tertiary)' }}>
                 <Calendar style={{ width: 40, height: 40, margin: '0 auto 12px', opacity: 0.3 }} />
                 <div style={{ fontSize: 15, fontWeight: 600 }}>Selecciona un escenario del historial</div>
               </div>
@@ -337,45 +337,45 @@ export default function HorariosPage() {
       {/* ── Edit Modal ── */}
       {editingSession && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: 'white', width: '100%', maxWidth: 450, borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>Mover Sesión</h2>
-              <button onClick={() => setEditingSession(null)} style={{ padding: 6, border: 'none', background: '#f1f5f9', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#64748b' }}><X style={{ width: 15, height: 15 }} /></button>
+          <div style={{ background: 'var(--bg-card)', width: '100%', maxWidth: 450, borderRadius: 20, boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-secondary)' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Mover Sesión</h2>
+              <button onClick={() => setEditingSession(null)} style={{ padding: 6, border: 'none', background: 'var(--bg-tertiary)', borderRadius: 8, cursor: 'pointer', display: 'flex', color: 'var(--text-secondary)' }}><X style={{ width: 15, height: 15 }} /></button>
             </div>
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               
-              <div style={{ padding: '12px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{editingSession.course}</div>
-                <div style={{ fontSize: 12.5, color: '#475569', marginTop: 4, display: 'flex', gap: 12 }}>
+              <div style={{ padding: '12px 16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{editingSession.course}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 4, display: 'flex', gap: 12 }}>
                   <span><User style={{ width: 12, height: 12, display: 'inline', verticalAlign: '-2px' }} /> {editingSession.teacher}</span>
                   <span><Clock style={{ width: 12, height: 12, display: 'inline', verticalAlign: '-2px' }} /> {editingSession.tipo}</span>
                 </div>
               </div>
 
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Día de la semana</label>
-                <select value={editForm.day} onChange={e => setEditForm(prev => ({ ...prev, day: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>Día de la semana</label>
+                <select value={editForm.day} onChange={e => setEditForm(prev => ({ ...prev, day: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border-color)', borderRadius: 10, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}>
                   {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                 </select>
               </div>
 
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Bloque Horario</label>
-                <select value={editForm.slot} onChange={e => setEditForm(prev => ({ ...prev, slot: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>Bloque Horario</label>
+                <select value={editForm.slot} onChange={e => setEditForm(prev => ({ ...prev, slot: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border-color)', borderRadius: 10, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}>
                   {SLOTS.map((s, i) => <option key={i} value={i}>{s.label}</option>)}
                 </select>
               </div>
 
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Aula</label>
-                <select value={editForm.roomId} onChange={e => setEditForm(prev => ({ ...prev, roomId: e.target.value }))} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>Aula</label>
+                <select value={editForm.roomId} onChange={e => setEditForm(prev => ({ ...prev, roomId: e.target.value }))} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border-color)', borderRadius: 10, fontSize: 14, outline: 'none', fontFamily: 'inherit' }}>
                   {aulas.map(a => <option key={a.id_aula} value={a.id_aula}>{a.nom_aula} (Cap: {a.capacidad})</option>)}
                 </select>
               </div>
 
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc' }}>
-              <button onClick={() => setEditingSession(null)} disabled={isSaving} style={{ padding: '9px 18px', border: '1.5px solid #e2e8f0', borderRadius: 10, background: 'white', fontSize: 13.5, fontWeight: 600, color: '#475569', cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid var(--border-light)', background: 'var(--bg-secondary)' }}>
+              <button onClick={() => setEditingSession(null)} disabled={isSaving} style={{ padding: '9px 18px', border: '1.5px solid var(--border-color)', borderRadius: 10, background: 'var(--bg-card)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
               <button onClick={handleSaveEdit} disabled={isSaving || !editForm.roomId} style={{ padding: '9px 18px', background: '#0f172a', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit', opacity: (isSaving || !editForm.roomId) ? 0.7 : 1 }}>{isSaving ? 'Guardando...' : 'Guardar Cambios'}</button>
             </div>
           </div>

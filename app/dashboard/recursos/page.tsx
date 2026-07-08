@@ -8,7 +8,7 @@ import { Users, Plus, Search, Edit2, Trash2, X, Clock, CheckCircle2, BrainCircui
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 const SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:30', '15:45-17:15', '17:30-19:00', '19:10-20:40', '20:50-22:20'];
 
-const card: React.CSSProperties = { background: 'white', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' };
+const card: React.CSSProperties = { background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' };
 
 type ModalType = { open: boolean; type: 'teacher'; editId: string | null };
 
@@ -134,10 +134,10 @@ export default function RecursosPage() {
     setTempComp(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const s = {
-    label: { fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 } as React.CSSProperties,
-    input: { width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 14, color: '#0f172a', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' } as React.CSSProperties,
-    btn: { padding: '9px 18px', background: '#0f172a', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
-    btnGhost: { padding: '9px 18px', border: '1.5px solid #e2e8f0', borderRadius: 10, background: 'white', fontSize: 13.5, fontWeight: 600, color: '#475569', cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
+    label: { fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 } as React.CSSProperties,
+    input: { width: '100%', padding: '10px 14px', border: '1.5px solid var(--border-color)', borderRadius: 10, fontSize: 14, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', background: 'var(--bg-card)' } as React.CSSProperties,
+    btn: { padding: '9px 18px', background: 'var(--accent)', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
+    btnGhost: { padding: '9px 18px', border: '1.5px solid var(--border-color)', borderRadius: 10, background: 'var(--bg-card)', fontSize: 13.5, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' } as React.CSSProperties,
   };
 
   return (
@@ -146,8 +146,8 @@ export default function RecursosPage() {
       {/* Header */}
       <div style={{ ...card, padding: '20px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px', margin: 0 }}>Recursos Docentes</h1>
-          <p style={{ fontSize: 13.5, color: '#64748b', margin: '4px 0 0' }}>Administra el cuerpo docente, sus competencias y disponibilidades horarias.</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.4px', margin: 0 }}>Recursos Docentes</h1>
+          <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '4px 0 0' }}>Administra el cuerpo docente, sus competencias y disponibilidades horarias.</p>
         </div>
         <button
           onClick={() => openTeacherModal()}
@@ -158,9 +158,9 @@ export default function RecursosPage() {
       </div>
 
       {/* Search & KPI summary */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 12, padding: 4, gap: 2 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 9, fontSize: 13.5, fontWeight: 600, background: 'white', color: '#0f172a', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', background: 'var(--bg-tertiary)', borderRadius: 12, padding: 4, gap: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 9, fontSize: 13.5, fontWeight: 600, background: 'var(--bg-card)', color: 'var(--text-primary)', boxShadow: 'var(--shadow-sm)' }}>
             <Users style={{ width: 15, height: 15 }} />
             Docentes Registrados
             <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 20, background: '#0f172a', color: 'white' }}>
@@ -169,9 +169,9 @@ export default function RecursosPage() {
           </div>
         </div>
         <div style={{ position: 'relative', flex: 1, maxWidth: 360 }}>
-          <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#94a3b8' }} />
+          <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--text-tertiary)' }} />
           <input type="text" placeholder="Buscar docente..." value={search} onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', padding: '9px 14px 9px 36px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: 13.5, color: '#334155', background: 'white', outline: 'none', fontFamily: 'inherit' }} />
+            style={{ width: '100%', padding: '9px 14px 9px 36px', border: '1.5px solid var(--border-color)', borderRadius: 10, fontSize: 13.5, color: 'var(--text-primary)', background: 'var(--bg-card)', outline: 'none', fontFamily: 'inherit' }} />
         </div>
       </div>
 
@@ -182,21 +182,21 @@ export default function RecursosPage() {
           const availDays = Object.values(t.availability ?? {}).filter(s => s.length > 0).length;
           return (
             <div key={t.id} style={{ ...card, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16, transition: 'box-shadow 0.15s' }}
-              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.09)'}
-              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'}>
+              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-md)'}
+              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-sm)'}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   <div style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg, #475569, #0f172a)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 17, flexShrink: 0 }}>
                     {t.name.charAt(0)}
                   </div>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>{t.name}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{t.name}</div>
                     <div style={{ fontSize: 12.5, fontWeight: 600, color: '#10b981' }}>Máx. {t.maxHours}h / semana</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button onClick={() => openTeacherModal(t.id)}
-                    style={{ padding: 7, border: 'none', background: '#f1f5f9', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#475569' }}>
+                    style={{ padding: 7, border: 'none', background: 'var(--bg-tertiary)', borderRadius: 8, cursor: 'pointer', display: 'flex', color: 'var(--text-secondary)' }}>
                     <Edit2 style={{ width: 13, height: 13 }} />
                   </button>
                   <button onClick={() => handleDeleteTeacher(t.id)} style={{ padding: 7, border: 'none', background: '#fef2f2', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#ef4444' }}>
@@ -205,23 +205,23 @@ export default function RecursosPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <div style={{ flex: 1, padding: '10px 0', background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9', textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>{availDays}</div>
-                  <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 500 }}>días disponible</div>
+                <div style={{ flex: 1, padding: '10px 0', background: 'var(--bg-secondary)', borderRadius: 10, border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{availDays}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', fontWeight: 500 }}>días disponible</div>
                 </div>
-                <div style={{ flex: 1, padding: '10px 0', background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9', textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>{compNames.length}</div>
-                  <div style={{ fontSize: 11.5, color: '#64748b', fontWeight: 500 }}>competencias</div>
+                <div style={{ flex: 1, padding: '10px 0', background: 'var(--bg-secondary)', borderRadius: 10, border: '1px solid var(--border-light)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{compNames.length}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', fontWeight: 500 }}>competencias</div>
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
                   <BrainCircuit style={{ width: 13, height: 13 }} /> Puede dictar
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {compNames.length > 0 ? compNames.map(name => (
                     <span key={name} style={{ fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: '#f0fdf4', color: '#10b981', border: '1px solid #a7f3d0' }}>{name}</span>
-                  )) : <span style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Sin competencias asignadas</span>}
+                  )) : <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Sin competencias asignadas</span>}
                 </div>
               </div>
             </div>
@@ -232,10 +232,10 @@ export default function RecursosPage() {
       {/* Modal Docente */}
       {modal.open && modal.type === 'teacher' && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: 'white', width: '100%', maxWidth: 680, borderRadius: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.18)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '88vh' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', flexShrink: 0 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>{modal.editId ? 'Editar Perfil Docente' : 'Nuevo Docente'}</h2>
-              <button onClick={() => setModal({ ...modal, open: false })} style={{ padding: 6, border: 'none', background: '#f1f5f9', borderRadius: 8, cursor: 'pointer', display: 'flex', color: '#64748b' }}>
+          <div style={{ background: 'var(--bg-card)', width: '100%', maxWidth: 680, borderRadius: 20, boxShadow: 'var(--shadow-lg)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '88vh' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{modal.editId ? 'Editar Perfil Docente' : 'Nuevo Docente'}</h2>
+              <button onClick={() => setModal({ ...modal, open: false })} style={{ padding: 6, border: 'none', background: 'var(--bg-tertiary)', borderRadius: 8, cursor: 'pointer', display: 'flex', color: 'var(--text-secondary)' }}>
                 <X style={{ width: 15, height: 15 }} />
               </button>
             </div>
@@ -274,8 +274,8 @@ export default function RecursosPage() {
                     const on = tempComp.includes(c.id);
                     return (
                       <button key={c.id} type="button" onClick={() => toggleComp(c.id)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, border: `1.5px solid ${on ? '#a7f3d0' : '#e2e8f0'}`, background: on ? '#f0fdf4' : '#f8fafc', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: on ? '#065f46' : '#475569', textAlign: 'left', fontFamily: 'inherit' }}>
-                        <CheckCircle2 style={{ width: 15, height: 15, color: on ? '#10b981' : '#cbd5e1', flexShrink: 0 }} />
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, border: `1.5px solid ${on ? '#a7f3d0' : 'var(--border-color)'}`, background: on ? '#f0fdf4' : 'var(--bg-secondary)', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: on ? '#065f46' : 'var(--text-secondary)', textAlign: 'left', fontFamily: 'inherit' }}>
+                        <CheckCircle2 style={{ width: 15, height: 15, color: on ? '#10b981' : 'var(--text-tertiary)', flexShrink: 0 }} />
                         {c.name}
                       </button>
                     );
@@ -288,25 +288,25 @@ export default function RecursosPage() {
                 <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Clock style={{ width: 14, height: 14, color: '#3b82f6' }} /> Disponibilidad Horaria
                 </label>
-                <div style={{ overflowX: 'auto', border: '1.5px solid #e2e8f0', borderRadius: 12 }}>
+                <div style={{ overflowX: 'auto', border: '1.5px solid var(--border-color)', borderRadius: 12 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                     <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: '#64748b' }}>Horario</th>
-                        {DAYS.map(d => <th key={d} style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: '#64748b' }}>{d.slice(0, 3)}</th>)}
-                        <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600, color: '#64748b', width: 36 }}></th>
+                      <tr style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>Horario</th>
+                        {DAYS.map(d => <th key={d} style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)' }}>{d.slice(0, 3)}</th>)}
+                        <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', width: 36 }}></th>
                       </tr>
                     </thead>
                     <tbody>
                       {SLOTS.map((slot, si) => (
-                        <tr key={slot} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '8px 14px', color: '#475569', fontWeight: 500, whiteSpace: 'nowrap' }}>{slot}</td>
+                        <tr key={slot} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td style={{ padding: '8px 14px', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>{slot}</td>
                           {DAYS.map((_, di) => {
                             const on = tempAvail[di]?.includes(si);
                             return (
                               <td key={di} style={{ padding: '6px 8px', textAlign: 'center' }}>
                                 <button type="button" onClick={() => toggleAvail(di, si)}
-                                  style={{ width: 32, height: 32, borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, background: on ? '#10b981' : '#f1f5f9', color: on ? 'white' : '#cbd5e1', transition: 'all 0.15s' }}>
+                                  style={{ width: 32, height: 32, borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, background: on ? '#10b981' : 'var(--bg-tertiary)', color: on ? 'white' : 'var(--text-tertiary)', transition: 'all 0.15s' }}>
                                   {on ? '✓' : ''}
                                 </button>
                               </td>
@@ -314,7 +314,7 @@ export default function RecursosPage() {
                           })}
                           <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                             <button type="button" onClick={() => toggleRow(si)}
-                              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 12, background: 'white', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border-color)', cursor: 'pointer', fontSize: 12, background: 'var(--bg-card)', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}
                               title="Seleccionar / deseleccionar toda la fila">
                               ⤓
                             </button>
@@ -328,7 +328,7 @@ export default function RecursosPage() {
                           return (
                             <td key={di} style={{ padding: '6px 8px', textAlign: 'center' }}>
                               <button type="button" onClick={() => toggleCol(di)}
-                                style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 12, background: allOn ? '#10b981' : 'white', color: allOn ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}
+                                style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border-color)', cursor: 'pointer', fontSize: 12, background: allOn ? '#10b981' : 'var(--bg-card)', color: allOn ? 'white' : 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}
                                 title="Seleccionar / deseleccionar toda la columna">
                                 ⤓
                               </button>
@@ -343,7 +343,7 @@ export default function RecursosPage() {
               </div>
 
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', flexShrink: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 24px', borderTop: '1px solid var(--border-light)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
               <button onClick={() => setModal({ ...modal, open: false })} style={s.btnGhost}>Cancelar</button>
               <button onClick={handleSaveTeacher} disabled={isSaving} style={{ ...s.btn, opacity: isSaving ? 0.7 : 1 }}>{isSaving ? 'Guardando...' : 'Guardar Cambios'}</button>
             </div>

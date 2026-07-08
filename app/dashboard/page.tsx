@@ -86,8 +86,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 function SkeletonCard({ height = 120 }: { height?: number }) {
   return (
     <div style={{
-      background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)',
+      background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)',
+      boxShadow: 'var(--shadow-sm)',
       overflow: 'hidden', height,
     }}>
       <div className="skeleton-shimmer" style={{ height: '100%' }} />
@@ -325,9 +325,9 @@ export default function DashboardPage() {
           const Icon = stat.icon;
           return (
             <div key={stat.label} className={`dash-card stat-hover`} style={{
-              background: 'white', borderRadius: 16, padding: 0,
-              border: '1px solid #e2e8f0', overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)',
+              background: 'var(--bg-card)', borderRadius: 16, padding: 0,
+              border: '1px solid var(--border-color)', overflow: 'hidden',
+              boxShadow: 'var(--shadow-sm)',
             }}>
               <div style={{ padding: '22px 24px 18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
@@ -348,14 +348,14 @@ export default function DashboardPage() {
                     {stat.trend}
                   </div>
                 </div>
-                <div style={{ fontSize: 36, fontWeight: 900, color: '#0f172a', lineHeight: 1, marginBottom: 6, letterSpacing: '-1px' }}>
+                <div style={{ fontSize: 36, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1, marginBottom: 6, letterSpacing: '-1px' }}>
                   {stat.value}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#64748b' }}>{stat.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>{stat.label}</div>
               </div>
               <div style={{
-                padding: '10px 24px', background: '#f8fafc', borderTop: '1px solid #f1f5f9',
-                fontSize: 14, color: '#94a3b8', fontWeight: 500,
+                padding: '10px 24px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-light)',
+                fontSize: 14, color: 'var(--text-tertiary)', fontWeight: 500,
               }}>
                 {stat.sub}
               </div>
@@ -368,17 +368,17 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
         {/* Demanda de Aulas */}
         <div className="dash-card stat-hover" style={{
-          background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)',
+          background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-sm)',
         }}>
           <div style={{ padding: '24px 28px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
                 Demanda de Aulas
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 42, fontWeight: 900, color: '#0f172a', lineHeight: 1, letterSpacing: '-1.5px' }}>{demandRatio}</span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#94a3b8' }}>%</span>
+                <span style={{ fontSize: 42, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-1.5px' }}>{demandRatio}</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-tertiary)' }}>%</span>
               </div>
             </div>
             <div style={{
@@ -390,7 +390,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div style={{ padding: '0 28px 24px' }}>
-            <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{ height: 8, background: 'var(--bg-tertiary)', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
               <div style={{
                 height: '100%', width: `${Math.min(100, demandRatio)}%`,
                 background: demandRatio > 80 ? 'linear-gradient(90deg, #ef4444, #f87171)' : 'linear-gradient(90deg, #10b981, #34d399)',
@@ -402,24 +402,24 @@ export default function DashboardPage() {
                 {demandRatio > 100 ? <AlertCircle style={{ width: 14, height: 14 }} /> : <CheckCircle2 style={{ width: 14, height: 14 }} />}
                 {demandRatio > 100 ? 'Faltan aulas físicas' : 'Capacidad instalada suficiente'}
               </span>
-              <span style={{ fontSize: 14, color: '#94a3b8' }}>{totalAlumnos} alumnos / {totalCapacidadAulas} capacidad</span>
+              <span style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>{totalAlumnos} alumnos / {totalCapacidadAulas} capacidad</span>
             </div>
           </div>
         </div>
 
         {/* Carga Docente */}
         <div className="dash-card stat-hover" style={{
-          background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)',
+          background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-sm)',
         }}>
           <div style={{ padding: '24px 28px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
                 Carga Docente
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 42, fontWeight: 900, color: '#0f172a', lineHeight: 1, letterSpacing: '-1.5px' }}>{teacherLoad}</span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#94a3b8' }}>%</span>
+                <span style={{ fontSize: 42, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-1.5px' }}>{teacherLoad}</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-tertiary)' }}>%</span>
               </div>
             </div>
             <div style={{
@@ -431,7 +431,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div style={{ padding: '0 28px 24px' }}>
-            <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{ height: 8, background: 'var(--bg-tertiary)', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
               <div style={{
                 height: '100%', width: `${Math.min(100, teacherLoad)}%`,
                 background: teacherLoad > 80 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
@@ -443,24 +443,24 @@ export default function DashboardPage() {
                 <CheckCircle2 style={{ width: 14, height: 14 }} />
                 {docentes.length > 0 ? `Promedio ${Math.round(totalSesiones / docentes.length)} ses/docente` : 'Sin docentes'}
               </span>
-              <span style={{ fontSize: 14, color: '#94a3b8' }}>{totalSesiones} sesiones / {docentes.length} docentes</span>
+              <span style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>{totalSesiones} sesiones / {docentes.length} docentes</span>
             </div>
           </div>
         </div>
 
         {/* Docentes sin Asignar */}
         <div className="dash-card stat-hover" style={{
-          background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)',
+          background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-sm)',
         }}>
           <div style={{ padding: '24px 28px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
                 Docentes sin Asignar
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 42, fontWeight: 900, color: '#0f172a', lineHeight: 1, letterSpacing: '-1.5px' }}>{docentesSinAsignar}</span>
-                <span style={{ fontSize: 18, fontWeight: 700, color: '#94a3b8' }}>/{docentes.length}</span>
+                <span style={{ fontSize: 42, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-1.5px' }}>{docentesSinAsignar}</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-tertiary)' }}>/{docentes.length}</span>
               </div>
             </div>
             <div style={{
@@ -472,7 +472,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div style={{ padding: '0 28px 24px' }}>
-            <div style={{ height: 8, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{ height: 8, background: 'var(--bg-tertiary)', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
               <div style={{
                 height: '100%', width: `${100 - pctDocentesLibres}%`,
                 background: docentesSinAsignar === 0 ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #f59e0b, #fbbf24)',
@@ -484,7 +484,7 @@ export default function DashboardPage() {
                 {docentesSinAsignar === 0 ? <CheckCircle2 style={{ width: 14, height: 14 }} /> : <AlertCircle style={{ width: 14, height: 14 }} />}
                 {docentesSinAsignar === 0 ? 'Todos los docentes asignados' : 'Hay docentes disponibles'}
               </span>
-              <span style={{ fontSize: 14, color: '#94a3b8' }}>{docentes.length - docentesSinAsignar} asignados / {docentes.length} total</span>
+              <span style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>{docentes.length - docentesSinAsignar} asignados / {docentes.length} total</span>
             </div>
           </div>
         </div>
@@ -495,8 +495,8 @@ export default function DashboardPage() {
 
         {/* Health Check Chart */}
         <div className="dash-card" style={{
-          background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)', borderRadius: 20, border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.02), 0 12px 32px rgba(0,0,0,0.06)',
+background: 'linear-gradient(145deg, var(--bg-card) 0%, var(--bg-secondary) 100%)', borderRadius: 20, border: '1px solid var(--border-color)',
+           boxShadow: 'var(--shadow-md)',
           overflow: 'hidden',
         }}>
           <div style={{ padding: '28px 32px 0' }}>
@@ -511,13 +511,13 @@ export default function DashboardPage() {
                   }}>
                     <BarChart3 style={{ width: 18, height: 18, color: 'white' }} />
                   </div>
-                  <h3 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.3px' }}>
                     Distribución Semanal
                   </h3>
                 </div>
-                <p style={{ fontSize: 14, color: '#94a3b8', marginTop: 2, marginLeft: 46 }}>Sesiones y ocupación por día</p>
+                <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 2, marginLeft: 46 }}>Sesiones y ocupación por día</p>
               </div>
-              <div style={{ display: 'flex', gap: 18, fontSize: 13, fontWeight: 600, background: '#f1f5f9', padding: '8px 16px', borderRadius: 10 }}>
+              <div style={{ display: 'flex', gap: 18, fontSize: 13, fontWeight: 600, background: 'var(--bg-tertiary)', padding: '8px 16px', borderRadius: 10 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#6366f1' }}>
                   <span style={{ width: 10, height: 10, borderRadius: 4, background: 'linear-gradient(135deg, #6366f1, #818cf8)', display: 'inline-block' }} />Sesiones
                 </span>
@@ -529,11 +529,11 @@ export default function DashboardPage() {
           </div>
           {totalSesiones === 0 ? (
             <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-              <div style={{ width: 64, height: 64, borderRadius: 16, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CalendarDays style={{ width: 28, height: 28, color: '#cbd5e1' }} />
+              <div style={{ width: 64, height: 64, borderRadius: 16, background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CalendarDays style={{ width: 28, height: 28, color: 'var(--text-tertiary)' }} />
               </div>
-              <p style={{ fontSize: 15, color: '#64748b', fontWeight: 600, margin: 0 }}>No hay sesiones programadas</p>
-              <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Genera un horario desde Escenarios o Gestor de Horarios</p>
+              <p style={{ fontSize: 15, color: 'var(--text-secondary)', fontWeight: 600, margin: 0 }}>No hay sesiones programadas</p>
+              <p style={{ fontSize: 14, color: 'var(--text-tertiary)', margin: 0 }}>Genera un horario desde Escenarios o Gestor de Horarios</p>
             </div>
           ) : (
             <div style={{ padding: '0 16px 24px', height: 300 }}>
@@ -557,10 +557,10 @@ export default function DashboardPage() {
                       <stop offset="100%" stopColor="#ef4444" />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#475569', fontSize: 14, fontWeight: 700 }} dy={10} />
-                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border-light)" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 14, fontWeight: 700 }} dy={10} />
+                  <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 12 }} />
+                  <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-tertiary)', fontSize: 12 }} />
                   <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(99,102,241,0.06)', radius: 8 }} />
                   <Bar yAxisId="left" dataKey="sesiones" fill="url(#gradSesiones)" radius={[8, 8, 0, 0]} maxBarSize={32} name="Sesiones" barSize={22}
                     activeBar={{ fill: '#818cf8', filter: 'brightness(1.2) drop-shadow(0 4px 8px rgba(99,102,241,0.4))' }} />
@@ -578,8 +578,8 @@ export default function DashboardPage() {
 
         {/* Right Column: Top Cursos */}
         <div className="dash-card" style={{
-          background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)',
+          background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-sm)',
           overflow: 'hidden',
         }}>
           <div style={{ padding: '24px 28px 0' }}>
@@ -592,16 +592,16 @@ export default function DashboardPage() {
               }}>
                 <GraduationCap style={{ width: 18, height: 18, color: 'white' }} />
               </div>
-              <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.3px' }}>
                 Top Cursos por Alumnos
               </h3>
             </div>
-            <p style={{ fontSize: 14, color: '#94a3b8', marginTop: 4, marginLeft: 46 }}>Los 5 cursos con mayor matrícula</p>
+            <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 4, marginLeft: 46 }}>Los 5 cursos con mayor matrícula</p>
           </div>
           <div style={{ padding: '20px 28px 24px' }}>
             {topCursos.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
-                <BookOpen style={{ width: 32, height: 32, margin: '0 auto 12px', color: '#cbd5e1' }} />
+              <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-tertiary)' }}>
+                <BookOpen style={{ width: 32, height: 32, margin: '0 auto 12px', color: 'var(--text-tertiary)' }} />
                 <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>No hay cursos registrados</p>
               </div>
             ) : (
@@ -619,13 +619,13 @@ export default function DashboardPage() {
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 12, fontWeight: 800, color: 'white', flexShrink: 0,
                           }}>{i + 1}</span>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {curso.nom_curso}
                           </span>
                         </div>
-                        <span style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginLeft: 12 }}>{curso.alumnos}</span>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginLeft: 12 }}>{curso.alumnos}</span>
                       </div>
-                      <div style={{ height: 6, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+                      <div style={{ height: 6, background: 'var(--bg-tertiary)', borderRadius: 99, overflow: 'hidden' }}>
                         <div style={{
                           height: '100%', width: `${pct}%`,
                           background: `linear-gradient(90deg, ${colors[i]}, ${colors[i]}88)`,
@@ -643,8 +643,8 @@ export default function DashboardPage() {
 
       {/* ── AULA OCCUPATION ── */}
       <div className="dash-card" style={{
-        background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)',
+        background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)',
+        boxShadow: 'var(--shadow-sm)',
         overflow: 'hidden',
       }}>
         <div style={{ padding: '28px 32px 0' }}>
@@ -657,16 +657,16 @@ export default function DashboardPage() {
             }}>
               <Building2 style={{ width: 18, height: 18, color: 'white' }} />
             </div>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.3px' }}>
               Ocupación por Aula
             </h3>
           </div>
-          <p style={{ fontSize: 14, color: '#94a3b8', marginTop: 4, marginLeft: 46 }}>Sesiones asignadas por espacio</p>
+          <p style={{ fontSize: 14, color: 'var(--text-tertiary)', marginTop: 4, marginLeft: 46 }}>Sesiones asignadas por espacio</p>
         </div>
         <div style={{ padding: '20px 32px 28px' }}>
           {aulaData.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
-              <Building2 style={{ width: 32, height: 32, margin: '0 auto 12px', color: '#cbd5e1' }} />
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-tertiary)' }}>
+              <Building2 style={{ width: 32, height: 32, margin: '0 auto 12px', color: 'var(--text-tertiary)' }} />
               <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>No hay sesiones asignadas a aulas</p>
             </div>
           ) : (
@@ -676,18 +676,18 @@ export default function DashboardPage() {
                 const color = colors[i % colors.length];
                 return (
                   <div key={aula.name} style={{
-                    background: '#f8fafc', borderRadius: 12, padding: '16px 20px',
-                    border: '1px solid #f1f5f9',
+                    background: 'var(--bg-secondary)', borderRadius: 12, padding: '16px 20px',
+                    border: '1px solid var(--border-light)',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{aula.name}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{aula.name}</span>
                       <span title={`${aula.sesiones} sesiones`} style={{
                         fontSize: 13, fontWeight: 800, color: color,
                         background: `${color}15`, padding: '3px 10px', borderRadius: 6,
                         cursor: 'default', transition: 'all 0.2s',
                       }}>{aula.sesiones}</span>
                     </div>
-                    <div style={{ height: 6, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ height: 6, background: 'var(--border-color)', borderRadius: 99, overflow: 'hidden' }}>
                       <div style={{
                         height: '100%', width: `${aula.pct}%`,
                         background: `linear-gradient(90deg, ${color}, ${color}88)`,
@@ -704,11 +704,11 @@ export default function DashboardPage() {
 
       {/* ── SUMMARY ROW ── */}
       <div className="dash-card" style={{
-        background: 'white', borderRadius: 16, border: '1px solid #e2e8f0',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03)',
+        background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)',
+        boxShadow: 'var(--shadow-sm)',
         padding: '28px 32px',
       }}>
-        <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', margin: '0 0 24px', letterSpacing: '-0.3px' }}>
+        <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 24px', letterSpacing: '-0.3px' }}>
           Resumen General
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24 }}>
@@ -728,8 +728,8 @@ export default function DashboardPage() {
                   <Icon style={{ width: 22, height: 22, color: item.color }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>{item.label}</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.3px' }}>{item.value}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 600 }}>{item.label}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{item.value}</div>
                 </div>
               </div>
             );

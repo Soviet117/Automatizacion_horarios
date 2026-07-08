@@ -68,7 +68,7 @@ export default function ReportesPage() {
   };
 
   if (!data && !loading && !selectedPeriodo) {
-      return <div className="p-8 text-center text-slate-500">No hay periodos disponibles para analizar.</div>;
+      return <div className="p-8 text-center" style={{ color: 'var(--text-secondary)' }}>No hay periodos disponibles para analizar.</div>;
   }
 
   const { roomUsageData = [], teacherLoadData = [], weeklyData = [], programData = [], stats = {} } = data || {};
@@ -77,10 +77,10 @@ export default function ReportesPage() {
     <div className="flex flex-col gap-6 max-w-7xl mx-auto print-area" ref={reportRef}>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white rounded-2xl shadow-sm border border-slate-200 reporte-card">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 rounded-2xl shadow-sm border reporte-card" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Reportes y Analíticas</h1>
-          <p className="text-sm text-slate-500" style={{ marginTop: '6px' }}>Métricas de uso de infraestructura, carga docente y distribución académica.</p>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Reportes y Analíticas</h1>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)', marginTop: '6px' }}>Métricas de uso de infraestructura, carga docente y distribución académica.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative no-print">
@@ -88,18 +88,18 @@ export default function ReportesPage() {
               value={selectedPeriodo}
               onChange={(e) => setSelectedPeriodo(e.target.value)}
               disabled={loading}
-              className="appearance-none bg-slate-50 border border-slate-200 text-slate-700 py-2 pl-4 pr-8 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer disabled:opacity-50"
+              className="appearance-none border py-2 pl-4 pr-8 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer disabled:opacity-50" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
             >
               {periodos.map((p) => (
                 <option key={p.id_periodo} value={p.id_periodo}>{p.nom_periodo}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: 'var(--text-tertiary)' }} />
           </div>
           <button 
             onClick={handleExportPDF}
             disabled={loading || !data}
-            className="no-print inline-flex items-center gap-2 border border-slate-200 text-slate-700 px-4 py-2 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="no-print inline-flex items-center gap-2 border px-4 py-2 rounded-xl font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50" style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}
           >
             <Download className="h-4 w-4" /> Exportar PDF
           </button>
@@ -107,7 +107,7 @@ export default function ReportesPage() {
       </div>
 
       {loading ? (
-        <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] text-slate-400">
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[400px]" style={{ color: 'var(--text-tertiary)' }}>
           <Loader2 className="h-10 w-10 animate-spin mb-4 text-emerald-500" />
           <p className="font-medium">Calculando métricas...</p>
         </div>
@@ -123,10 +123,10 @@ export default function ReportesPage() {
             ].map(kpi => {
               const Icon = kpi.icon;
               return (
-                <div key={kpi.label} className="bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-all min-w-0 reporte-kpi">
+                <div key={kpi.label} className="border rounded-2xl hover:shadow-md transition-all min-w-0 reporte-kpi" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
                   <div className={`kpi-icon ${kpi.bg} rounded-xl inline-block`}><Icon className={`h-5 w-5 ${kpi.color}`} /></div>
-                  <div className="kpi-value font-extrabold text-slate-900 truncate">{kpi.value}</div>
-                  <div className="text-xs text-slate-500 truncate mb-1" title={kpi.label}>{kpi.label}</div>
+                  <div className="kpi-value font-extrabold truncate" style={{ color: 'var(--text-primary)' }}>{kpi.value}</div>
+                  <div className="text-xs truncate mb-1" style={{ color: 'var(--text-secondary)' }} title={kpi.label}>{kpi.label}</div>
                   <div className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3 shrink-0" /> <span className="truncate">{kpi.trend}</span>
                   </div>
@@ -138,9 +138,9 @@ export default function ReportesPage() {
           {/* Charts Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 grid-charts">
             {/* Uso de Aulas */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
-              <h3 className="font-bold text-slate-900">Utilización de Aulas (Top 10)</h3>
-              <p className="text-xs text-slate-500">Porcentaje de ocupación sobre 40 bloques semanales.</p>
+            <div className="border rounded-2xl shadow-sm reporte-card" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+              <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Utilización de Aulas (Top 10)</h3>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Porcentaje de ocupación sobre 40 bloques semanales.</p>
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={roomUsageData} layout="vertical" margin={{ left: 0, right: 20, top: 0, bottom: 0 }}>
@@ -157,9 +157,9 @@ export default function ReportesPage() {
             </div>
 
             {/* Distribución por Programa */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
-              <h3 className="font-bold text-slate-900">Distribución por Programa</h3>
-              <p className="text-xs text-slate-500">Porcentaje de alumnos activos por carrera.</p>
+            <div className="border rounded-2xl shadow-sm reporte-card" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+              <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Distribución por Programa</h3>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Porcentaje de alumnos activos por carrera.</p>
               <div className="flex items-center gap-4 h-60">
                 <div className="flex-1 h-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -175,8 +175,8 @@ export default function ReportesPage() {
                   {programData.map((p: any, i: number) => (
                     <div key={p.name} className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                      <span className="text-xs text-slate-600 font-medium truncate" title={p.name}>{p.name}</span>
-                      <span className="text-xs font-bold text-slate-900 ml-auto pl-2">{p.value}%</span>
+                      <span className="text-xs font-medium truncate" title={p.name} style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+                      <span className="text-xs font-bold ml-auto pl-2" style={{ color: 'var(--text-primary)' }}>{p.value}%</span>
                     </div>
                   ))}
                 </div>
@@ -187,9 +187,9 @@ export default function ReportesPage() {
           {/* Charts Row 2 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 grid-charts">
             {/* Carga Docente */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
-              <h3 className="font-bold text-slate-900">Carga Horaria Docente (Top 10)</h3>
-              <p className="text-xs text-slate-500">Bloques asignados vs 40 bloques base.</p>
+            <div className="border rounded-2xl shadow-sm reporte-card" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+              <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Carga Horaria Docente (Top 10)</h3>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Bloques asignados vs 40 bloques base.</p>
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={teacherLoadData} margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
@@ -208,9 +208,9 @@ export default function ReportesPage() {
             </div>
 
             {/* Tendencia semanal */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm reporte-card">
-              <h3 className="font-bold text-slate-900">Ocupación por Día</h3>
-              <p className="text-xs text-slate-500">Cantidad de aulas y docentes activos por día.</p>
+            <div className="border rounded-2xl shadow-sm reporte-card" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+              <h3 className="font-bold" style={{ color: 'var(--text-primary)' }}>Ocupación por Día</h3>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Cantidad de aulas y docentes activos por día.</p>
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={weeklyData} margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
