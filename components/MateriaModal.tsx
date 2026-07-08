@@ -60,7 +60,7 @@ export default function MateriaModal({ isOpen, onClose, onSave, materia, maestro
         horas_teoricas: 0,
         horas_practicas: 0,
         alumnos: 0,
-        modalidad: 'Presencial',
+    modalidad: MODALIDADES[0],
         tipo_curso: maestros?.tiposSesion?.[0]?.id_tipo_sesion || '',
         id_carrera: maestros?.carreras?.[0]?.id_carrera || '',
         id_ciclo: maestros?.ciclos?.[0]?.id_ciclo || 1,

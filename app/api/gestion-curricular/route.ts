@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { DEFAULT_MODALIDAD } from '@/lib/constants';
 
 const prisma = new PrismaClient();
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
         nom_curso: data.nom_curso,
         creditos: parseInt(data.creditos) || 0,
         id_carrera: data.id_carrera,
-        modalidad: data.modalidad || 'Presencial',
+        modalidad: data.modalidad || DEFAULT_MODALIDAD,
         tipo_curso: data.tipo_curso,
         id_ciclo: parseInt(data.id_ciclo),
         horas_teoricas: parseInt(data.horas_teoricas) || 0,

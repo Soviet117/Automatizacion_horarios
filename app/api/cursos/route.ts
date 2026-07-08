@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { DEFAULT_MODALIDAD } from '@/lib/constants'
 
 const mapProgramToCarreraId = (program: string): string => {
   if (!program) return "C01";
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
     const nom_curso = body.name || body.nom_curso
     const tipo_curso = body.type || body.tipo_curso
     const creditos = body.creditos !== undefined ? Number(body.creditos) : 1
-    const modalidad = body.modalidad || 'Presencial'
+    const modalidad = body.modalidad || DEFAULT_MODALIDAD
     const id_ciclo = body.semester !== undefined ? Number(body.semester) : (body.id_ciclo !== undefined ? Number(body.id_ciclo) : 1)
     const horas_teoricas = body.theoreticalHours !== undefined ? Number(body.theoreticalHours) : 0
     const horas_practicas = body.practicalHours !== undefined ? Number(body.practicalHours) : 0

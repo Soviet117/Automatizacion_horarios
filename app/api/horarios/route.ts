@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { prisma } from '../../../lib/prisma';
+import { DEFAULT_MODALIDAD } from '../../../lib/constants';
 
 const DAYS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
 const SLOTS = [
@@ -342,7 +343,7 @@ export async function POST(request: Request) {
           nom_curso: cursoName,
           creditos: 1,
           id_carrera: 'C01',
-          modalidad: 'Presencial',
+          modalidad: DEFAULT_MODALIDAD,
           tipo_curso: 'theoretical',
           id_ciclo: 1,
           id_usuario: userId,
