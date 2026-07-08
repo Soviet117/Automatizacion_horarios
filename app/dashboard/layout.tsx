@@ -1,20 +1,35 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import {
   BarChart3, BookOpen, Users, Building2, CalendarDays,
-  Settings, LogOut, Search, Bell, Layers, Activity, GraduationCap
+  Settings, LogOut, Search, Bell, Layers, Activity, GraduationCap,
+  Check, AlertTriangle, Info, Megaphone,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+
+interface NotifItem {
+  id: string;
+  tipo: string;
+  mensaje: string;
+  leida: boolean;
+  link: string | null;
+  creadoEl: string;
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [notifs, setNotifs] = useState<NotifItem[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const unreadCount = notifs.filter(n => !n.leida).length;
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -29,6 +44,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       })
       .catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`/api/notificaciones?userId=${user.id}`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setNotifs(data); })
+      .catch(() => {});
+  }, [user?.id]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const markRead = async (id: string) => {
+    await fetch(`/api/notificaciones/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leida: true }) });
+    setNotifs(prev => prev.map(n => n.id === id ? { ...n, leida: true } : n));
+  };
+
+  const notifIcon = (tipo: string) => {
+    switch (tipo) {
+      case 'conflicto': return <AlertTriangle style={{ width: 14, height: 14, color: '#ef4444' }} />;
+      case 'publicacion': return <Megaphone style={{ width: 14, height: 14, color: '#10b981' }} />;
+      default: return <Info style={{ width: 14, height: 14, color: '#3b82f6' }} />;
+    }
+  };
+
+  const timeAgo = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'ahora';
+    if (mins < 60) return `hace ${mins} min`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `hace ${hrs}h`;
+    return `hace ${Math.floor(hrs / 24)}d`;
+  };
 
   if (loading || !user) return null;
 
@@ -121,13 +175,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <kbd style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', background: 'white', border: '1px solid #e2e8f0', borderRadius: 5, padding: '1px 5px', fontFamily: 'monospace' }}>⌘K</kbd>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-            <button style={{ position: 'relative', padding: 8, borderRadius: 10, background: 'transparent', border: 'none', cursor: 'pointer', color: '#94a3b8', transition: 'all 0.15s' }}
+          <div ref={notifRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <button onClick={() => setNotifOpen(o => !o)} style={{ position: 'relative', padding: 8, borderRadius: 10, background: notifOpen ? '#f1f5f9' : 'transparent', border: 'none', cursor: 'pointer', color: notifOpen ? '#475569' : '#94a3b8', transition: 'all 0.15s' }}
               onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#475569'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}>
+              onMouseLeave={e => { if (!notifOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; } }}>
               <Bell style={{ width: 18, height: 18 }} />
-              <span style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '1.5px solid white' }} />
+              {unreadCount > 0 && (
+                <span style={{ position: 'absolute', top: 5, right: 5, minWidth: 16, height: 16, borderRadius: 99, background: '#ef4444', border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 9, fontWeight: 800, lineHeight: 1, padding: '0 4px' }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
+
+            {notifOpen && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 8, width: 360, background: 'white', borderRadius: 14, border: '1px solid #e2e8f0', boxShadow: '0 12px 48px rgba(0,0,0,0.12)', zIndex: 100, overflow: 'hidden' }}>
+                <div style={{ padding: '14px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>Notificaciones</span>
+                  {unreadCount > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>{unreadCount} sin leer</span>}
+                </div>
+                <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+                  {notifs.length === 0 ? (
+                    <div style={{ padding: '36px 18px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No hay notificaciones</div>
+                  ) : (
+                    notifs.map(n => (
+                      <button key={n.id} onClick={() => { if (!n.leida) markRead(n.id); }} style={{
+                        display: 'flex', gap: 12, padding: '12px 18px', border: 'none', borderBottom: '1px solid #f8fafc', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%', transition: 'background 0.1s',
+                        background: n.leida ? 'white' : '#f0fdf4',
+                      }}
+                        onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = n.leida ? 'white' : '#f0fdf4'; }}>
+                        <div style={{ marginTop: 2, flexShrink: 0 }}>{notifIcon(n.tipo)}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.4 }}>{n.mensaje}</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{timeAgo(n.creadoEl)}</div>
+                        </div>
+                        {!n.leida && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', flexShrink: 0, marginTop: 6 }} />}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </header>
 

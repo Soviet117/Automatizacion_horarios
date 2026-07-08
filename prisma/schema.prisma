@@ -179,19 +179,41 @@ model horario_sesion {
 }
 
 model usuario {
-  id_usuario     String           @id(map: "usuario_pk") @default(uuid()) @db.VarChar
-  email          String           @unique @db.VarChar
-  password       String           @db.VarChar
-  nombre         String           @db.VarChar
-  role           String           @default("user") @db.VarChar
-  telefono       String?          @db.VarChar
-  departamento   String?          @db.VarChar
-  avatar_url     String?          @db.Text
-  preferencias   Json?            @db.JsonB
-  aula           aula[]
-  curso          curso[]
-  docente        docente[]
-  horario_sesion horario_sesion[]
+  id_usuario            String           @id(map: "usuario_pk") @default(uuid()) @db.VarChar
+  email                 String           @unique @db.VarChar
+  password              String           @db.VarChar
+  nombre                String           @db.VarChar
+  role                  String           @default("user") @db.VarChar
+  telefono              String?          @db.VarChar
+  departamento          String?          @db.VarChar
+  avatar_url            String?          @db.Text
+  preferencias          Json?            @db.JsonB
+  email_verified        Boolean          @default(false)
+  aula                  aula[]
+  curso                 curso[]
+  docente               docente[]
+  horario_sesion        horario_sesion[]
+  notificacion          notificacion[]
+}
+
+model notificacion {
+  id_notificacion String   @id(map: "notificacion_pk") @default(uuid()) @db.VarChar
+  id_usuario      String   @db.VarChar
+  tipo            String   @db.VarChar
+  mensaje         String   @db.VarChar
+  leida           Boolean  @default(false)
+  link            String?  @db.VarChar
+  creado_el       DateTime @default(now())
+
+  usuario usuario @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "notificacion_usuario_fk")
+
+  @@index([id_usuario])
+}
+
+model verificacion_pendiente {
+  email      String   @id
+  codigo     String   @db.VarChar
+  expiracion DateTime
 }
 
 model competencia_docente {

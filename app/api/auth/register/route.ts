@@ -25,7 +25,8 @@ export async function POST(request: Request) {
         email: username,
         password: hashedPassword,
         nombre: name,
-        role: 'user'
+        role: 'user',
+        email_verified: true,
       }
     });
 
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
       id: newUser.id_usuario,
       username: newUser.email,
       name: newUser.nombre,
-      role: newUser.role
+      role: newUser.role,
     }, { status: 201 });
 
   } catch (error) {
