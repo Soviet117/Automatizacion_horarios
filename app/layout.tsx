@@ -1,5 +1,5 @@
 import './globals.css'
-import { AuthProvider } from './context/AuthContext'
+import { Providers } from './providers'
 
 export const metadata = {
   title: 'Optimizer EIS',
@@ -12,11 +12,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body>
-        <AuthProvider>
+        <Providers>
           {children}
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   )

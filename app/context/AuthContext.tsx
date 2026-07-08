@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (user: SessionUser) => void;
   logout: () => void;
   loading: boolean;
+  updateUser: (data: Partial<SessionUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   login: () => {},
   logout: () => {},
   loading: true,
+  updateUser: () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -90,6 +92,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(false);
   }, []);
 
+  const updateUser = useCallback((data: Partial<SessionUser>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...data };
+      localStorage.setItem('optimizer_user', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   const login = (newUser: SessionUser) => {
     setUser(newUser);
     localStorage.setItem('optimizer_user', JSON.stringify(newUser));
@@ -97,7 +108,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
