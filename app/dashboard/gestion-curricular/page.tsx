@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus, Search, BookOpen, Clock, Users, Layers, Edit2, Trash2, GraduationCap, Building2, Settings } from 'lucide-react';
 import MateriaModal from '../../../components/MateriaModal';
 import AsignarDocenteModal from '../../../components/AsignarDocenteModal';
+import { useToast } from '@/app/context/ToastContext';
 
 interface Curso {
   id_curso: string;
@@ -25,6 +26,7 @@ interface Curso {
 }
 
 export default function GestionCurricularPage() {
+  const { toast } = useToast();
   const router = useRouter();
   const [cursos, setCursos] = useState<Curso[]>([]);
   const [filteredCursos, setFilteredCursos] = useState<Curso[]>([]);
@@ -81,7 +83,7 @@ export default function GestionCurricularPage() {
     }
   };
 
-  const handleOpenModal = (curso?: any) => {
+  const handleOpenModal = (curso?: Curso | null) => {
     setSelectedCurso(curso || null);
     setIsModalOpen(true);
   };
@@ -106,7 +108,7 @@ export default function GestionCurricularPage() {
       if (res.ok) {
         fetchCursos();
       } else {
-        alert("Error al eliminar la materia");
+        toast("Error al eliminar la materia", 'error');
       }
     } catch (err) {
       console.error("Error deleting:", err);

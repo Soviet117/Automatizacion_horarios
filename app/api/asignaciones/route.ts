@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionFromRequest, handleApiError } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id_curso = searchParams.get('id_curso');
@@ -11,26 +12,27 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'No hay periodo activo' }, { status: 400 });
     }
 
-    const whereClause: any = { id_periodo: periodo.id_periodo };
+    const whereClause: Record<string, unknown> = { id_periodo: periodo.id_periodo };
     if (id_curso) whereClause.id_curso = id_curso;
 
     const asignaciones = await prisma.asignacion.findMany({
       where: whereClause,
-      include: {
-        docente: true,
-        curso: true
-      }
+      include: { docente: true, curso: true }
     });
 
     return NextResponse.json(asignaciones);
   } catch (error) {
-    console.error('Error GET asignaciones:', error);
-    return NextResponse.json({ error: 'Error al obtener asignaciones' }, { status: 500 });
+    return handleApiError(error, 'GET asignaciones');
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id_curso, id_docente } = body;
 
@@ -43,20 +45,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No hay periodo activo' }, { status: 400 });
     }
 
-    // Check if assignment already exists
     const existing = await prisma.asignacion.findFirst({
-      where: {
-        id_curso,
-        id_docente,
-        id_periodo: periodo.id_periodo
-      }
+      where: { id_curso, id_docente, id_periodo: periodo.id_periodo }
     });
 
     if (existing) {
       return NextResponse.json({ error: 'El docente ya está asignado a este curso en el periodo actual' }, { status: 400 });
     }
 
-    // Check teacher has competency for this course
     const competency = await prisma.competencia_docente.findFirst({
       where: { id_docente, id_curso }
     });
@@ -68,24 +64,25 @@ export async function POST(request: Request) {
     const asignacion = await prisma.asignacion.create({
       data: {
         id_asignacion: `ASG-${crypto.randomUUID().substring(0, 8)}`,
-        id_curso,
-        id_docente,
+        id_curso, id_docente,
         id_periodo: periodo.id_periodo
       },
-      include: {
-        docente: true
-      }
+      include: { docente: true }
     });
 
     return NextResponse.json(asignacion);
   } catch (error) {
-    console.error('Error POST asignacion:', error);
-    return NextResponse.json({ error: 'Error al crear asignación' }, { status: 500 });
+    return handleApiError(error, 'POST asignaciones');
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -93,13 +90,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
     }
 
-    await prisma.asignacion.delete({
-      where: { id_asignacion: id }
-    });
+    await prisma.asignacion.delete({ where: { id_asignacion: id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error DELETE asignacion:', error);
-    return NextResponse.json({ error: 'Error al eliminar asignación' }, { status: 500 });
+    return handleApiError(error, 'DELETE asignaciones');
   }
 }

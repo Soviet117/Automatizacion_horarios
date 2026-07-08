@@ -6,6 +6,7 @@ import {
   GitBranch, AlertCircle, User, Home, BookOpen, RefreshCw, Edit3, X
 } from 'lucide-react';
 import { getAulas, updateSessionSlot } from './actions';
+import { useToast } from '@/app/context/ToastContext';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Escenario {
@@ -70,6 +71,7 @@ const card: React.CSSProperties = {
 
   // ── Main Component ─────────────────────────────────────────────────────────
 export default function HorariosPage() {
+  const { toast } = useToast();
   const [escenarios, setEscenarios] = useState<Escenario[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,8 +101,8 @@ export default function HorariosPage() {
       const data: Escenario[] = await res.json();
       setEscenarios(data);
       setAulas(aulasData);
-      if (masterRes?.dias) setDays(masterRes.dias.map((d: any) => d.nom_dia));
-      if (masterRes?.bloques) setSlots(masterRes.bloques.map((b: any) => ({ label: `${b.horario_inicio} – ${b.horario_fin}` })));
+      if (masterRes?.dias) setDays(masterRes.dias.map((d: { nom_dia: string }) => d.nom_dia));
+      if (masterRes?.bloques) setSlots(masterRes.bloques.map((b: { horario_inicio: string; horario_fin: string }) => ({ label: `${b.horario_inicio} – ${b.horario_fin}` })));
 
       // Assign stable colors to courses
       const allCourses = Array.from(new Set(data.flatMap(e => e.sessions.map(s => s.course))));
@@ -111,8 +113,8 @@ export default function HorariosPage() {
       // Auto-select the published one, or first
       const pub = data.find(e => e.status === 'published');
       setSelected(pub?.id ?? data[0]?.id ?? null);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al cargar');
     } finally {
       setLoading(false);
     }
@@ -143,8 +145,8 @@ export default function HorariosPage() {
       await updateSessionSlot(editingSession.id, editForm.day, editForm.slot, editForm.roomId);
       await loadData();
       setEditingSession(null);
-    } catch (e: any) {
-      alert(e.message);
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Error al guardar', 'error');
     } finally {
       setIsSaving(false);
     }

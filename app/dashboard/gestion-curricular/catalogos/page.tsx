@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Pencil, Building, GraduationCap, Layers, BookOpen, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/context/ToastContext';
 
 export default function CatalogosPage() {
+  const { toast } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('facultades');
   const [loading, setLoading] = useState(true);
@@ -43,20 +45,17 @@ export default function CatalogosPage() {
     { id: 'sesiones', label: 'Tipos de Sesión', icon: Clock, color: '#ef4444', bg: '#fef2f2' },
   ];
 
-  const handleOpenModal = (item: any = null) => {
-    if (item && !item.nativeEvent) {
-      setFormData(item);
-      let id = '';
-      if (activeTab === 'facultades') id = item.id_facultad;
-      else if (activeTab === 'carreras') id = item.id_carrera;
-      else if (activeTab === 'ciclos') id = item.id_ciclo;
-      else if (activeTab === 'planes') id = item.id_plan;
-      else if (activeTab === 'sesiones') id = item.id_tipo_sesion;
-      setEditingId(id);
-    } else {
-      setFormData({});
-      setEditingId(null);
+  const handleOpenModal = (item?: Record<string, unknown>) => {
+    setFormData(item ?? {});
+    let id = '';
+    if (item) {
+      if (activeTab === 'facultades') id = String(item.id_facultad ?? '');
+      else if (activeTab === 'carreras') id = String(item.id_carrera ?? '');
+      else if (activeTab === 'ciclos') id = String(item.id_ciclo ?? '');
+      else if (activeTab === 'planes') id = String(item.id_plan ?? '');
+      else if (activeTab === 'sesiones') id = String(item.id_tipo_sesion ?? '');
     }
+    setEditingId(id);
     setIsModalOpen(true);
   };
 
@@ -100,11 +99,11 @@ export default function CatalogosPage() {
         handleCloseModal();
       } else {
         const err = await res.json();
-        alert(err.error || 'Ocurrió un error al guardar');
+        toast(err.error || 'Ocurrió un error al guardar', 'error');
       }
     } catch (err) {
       console.error(err);
-      alert('Error de red al intentar guardar');
+      toast('Error de red al intentar guardar', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -126,7 +125,7 @@ export default function CatalogosPage() {
         fetchMasterData();
       } else {
         const err = await res.json();
-        alert(err.error || 'Ocurrió un error al eliminar');
+        toast(err.error || 'Ocurrió un error al eliminar', 'error');
       }
     } catch (err) {
       console.error(err);
@@ -136,7 +135,7 @@ export default function CatalogosPage() {
   const renderTable = () => {
     if (loading || !masterData) return <div style={{ padding: 40, textAlign: 'center' }}>Cargando datos...</div>;
 
-    let items: any[] = [];
+    let items: Record<string, unknown>[] = [];
     let columns: { key: string; label: string }[] = [];
     let idKey = '';
 
@@ -145,9 +144,9 @@ export default function CatalogosPage() {
       columns = [{ key: 'nom_facultad', label: 'Nombre de la Facultad' }];
       idKey = 'id_facultad';
     } else if (activeTab === 'carreras') {
-      items = (masterData.carreras || []).map((c: any) => ({
+      items = (masterData.carreras || []).map((c: Record<string, unknown>) => ({
         ...c,
-        nom_facultad: masterData.facultades?.find((f: any) => f.id_facultad === c.id_facultad)?.nom_facultad || c.id_facultad
+        nom_facultad: (masterData.facultades as Record<string, unknown>[])?.find((f: Record<string, unknown>) => f.id_facultad === c.id_facultad)?.nom_facultad || c.id_facultad
       }));
       columns = [
         { key: 'nom_carrera', label: 'Nombre de la Carrera' },
@@ -159,9 +158,9 @@ export default function CatalogosPage() {
       columns = [{ key: 'nom_ciclo', label: 'Nombre del Ciclo' }];
       idKey = 'id_ciclo';
     } else if (activeTab === 'planes') {
-      items = (masterData.planes || []).map((p: any) => ({
+      items = (masterData.planes || []).map((p: Record<string, unknown>) => ({
         ...p,
-        nom_carrera: masterData.carreras?.find((c: any) => c.id_carrera === p.id_carrera)?.nom_carrera || p.id_carrera
+        nom_carrera: (masterData.carreras as Record<string, unknown>[])?.find((c: Record<string, unknown>) => c.id_carrera === p.id_carrera)?.nom_carrera || p.id_carrera
       }));
       columns = [
         { key: 'nom_plan', label: 'Nombre del Plan' },
@@ -198,13 +197,13 @@ export default function CatalogosPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((item: any, i: number) => {
-              const id = item[idKey];
+            {items.map((item: Record<string, unknown>, i: number) => {
+              const id = String(item[idKey] ?? i);
               return (
                 <tr key={id} style={{ borderBottom: i === items.length - 1 ? 'none' : '1px solid var(--border-light)' }}>
                   {columns.map(col => (
                     <td key={col.key} style={{ padding: '16px 24px', fontSize: 14, color: 'var(--text-primary)' }}>
-                      {item[col.key]}
+                      {String(item[col.key] ?? '')}
                     </td>
                   ))}
                   <td style={{ padding: '16px 24px', textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -249,7 +248,7 @@ export default function CatalogosPage() {
             <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Facultad</label>
             <select required value={formData.id_facultad || ''} onChange={e => setFormData({ ...formData, id_facultad: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none', background: 'var(--bg-card)' }}>
               <option value="">Selecciona una facultad...</option>
-              {masterData?.facultades?.map((f: any) => <option key={f.id_facultad} value={f.id_facultad}>{f.nom_facultad}</option>)}
+              {(masterData?.facultades as Record<string, unknown>[])?.map((f: Record<string, unknown>) => <option key={String(f.id_facultad)} value={String(f.id_facultad)}>{String(f.nom_facultad)}</option>)}
             </select>
           </div>
         </>
@@ -278,7 +277,7 @@ export default function CatalogosPage() {
             <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Carrera</label>
             <select required value={formData.id_carrera || ''} onChange={e => setFormData({ ...formData, id_carrera: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-color)', outline: 'none', background: 'var(--bg-card)' }}>
               <option value="">Selecciona una carrera...</option>
-              {masterData?.carreras?.map((c: any) => <option key={c.id_carrera} value={c.id_carrera}>{c.nom_carrera}</option>)}
+              {(masterData?.carreras as Record<string, unknown>[])?.map((c: Record<string, unknown>) => <option key={String(c.id_carrera)} value={String(c.id_carrera)}>{String(c.nom_carrera)}</option>)}
             </select>
           </div>
         </>
@@ -354,7 +353,7 @@ export default function CatalogosPage() {
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
               {tabs.find(t => t.id === activeTab)?.label}
             </h2>
-            <button onClick={handleOpenModal} style={{
+            <button onClick={() => handleOpenModal()} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12,
               background: '#0f172a', border: 'none', color: 'white',
               fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: 'var(--shadow-md)',

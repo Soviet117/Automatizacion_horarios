@@ -1,0 +1,86 @@
+⨯ Error: No hay un periodo académico activo. Activa uno antes de generar horarios.
+    at SchedulerService.optimizeSchedule (lib\schedulerService.ts:44:13)
+    at async runOptimizationForEscenario (app\dashboard\escenarios\actions.ts:131:18)
+  42 |
+  43 |     if (!periodoActivo) {
+> 44 |       throw new Error('No hay un periodo académico activo. Activa uno antes de generar hor...
+     |             ^
+  45 |     }
+  46 |
+  47 |     let filtroCiclo: number | undefined; {
+  digest: '694254364'
+}
+⨯ Error: No hay un periodo académico activo. Activa uno antes de generar horarios.
+    at SchedulerService.optimizeSchedule (lib\schedulerService.ts:44:13)
+    at async runOptimizationForEscenario (app\dashboard\escenarios\actions.ts:131:18)
+  42 |
+  43 |     if (!periodoActivo) {
+> 44 |       throw new Error('No hay un periodo académico activo. Activa uno antes de generar hor...
+     |             ^
+  45 |     }
+  46 |
+  47 |     let filtroCiclo: number | undefined; {
+  digest: '694254364'
+}
+⨯ Error: No hay un periodo académico activo. Activa uno antes de generar horarios.
+    at SchedulerService.optimizeSchedule (lib\schedulerService.ts:44:13)
+    at async runOptimizationForEscenario (app\dashboard\escenarios\actions.ts:131:18)
+  42 |
+  43 |     if (!periodoActivo) {
+> 44 |       throw new Error('No hay un periodo académico activo. Activa uno antes de generar hor...
+     |             ^
+  45 |     }
+  46 |
+  47 |     let filtroCiclo: number | undefined; {
+  digest: '694254364'
+}
+⨯ Error: No hay un periodo académico activo. Activa uno antes de generar horarios.
+    at SchedulerService.optimizeSchedule (lib\schedulerService.ts:44:13)
+    at async runOptimizationForEscenario (app\dashboard\escenarios\actions.ts:131:18)
+  42 |
+  43 |     if (!periodoActivo) {
+> 44 |       throw new Error('No hay un periodo académico activo. Activa uno antes de generar hor...
+     |             ^
+  45 |     }
+  46 |
+  47 |     let filtroCiclo: number | undefined; {
+  digest: '694254364'
+}
+⨯ Error: Faltan datos maestros (Docentes, Aulas o Asignaciones) para generar el horario.
+    at SchedulerService.optimizeSchedule (lib\schedulerService.ts:86:13)
+    at async runOptimizationForEscenario (app\dashboard\escenarios\actions.ts:131:18)
+  84 |
+  85 |     if (docentesDB.length === 0 || aulasDB.length === 0 || asignacionesDB.length === 0) {
+> 86 |       throw new Error('Faltan datos maestros (Docentes, Aulas o Asignaciones) para generar...
+     |             ^
+  87 |     }
+  88 |
+  89 |     console.log(`[Scheduler] Periodo activo: ${periodoActivo.id_periodo}, Asignaciones a r... {
+  digest: '3158824272'
+}
+⨯ Error: No se pudo conectar con el motor CSP (Python). ¿Está corriendo en el puerto 8000?
+    at SchedulerService.callSolver (lib\schedulerService.ts:168:13)
+    at async SchedulerService.optimizeSchedule (lib\schedulerService.ts:147:16)
+    at async runOptimizationForEscenario (app\dashboard\escenarios\actions.ts:131:18)
+  166 |       });
+  167 |     } catch (e) {
+> 168 |       throw new Error('No se pudo conectar con el motor CSP (Python). ¿Está corriendo en ...
+      |             ^
+  169 |     }
+  170 |
+  171 |     if (!response.ok) { {
+  digest: '1195717109'
+}
+⨯ Error: No se pudo conectar con el motor CSP (Python). ¿Está corriendo en el puerto 8000?
+    at SchedulerService.callSolver (lib\schedulerService.ts:168:13)
+    at async SchedulerService.optimizeSchedule (lib\schedulerService.ts:147:16)
+    at async runOptimizationForEscenario (app\dashboard\escenarios\actions.ts:131:18)
+  166 |       });
+  167 |     } catch (e) {
+> 168 |       throw new Error('No se pudo conectar con el motor CSP (Python). ¿Está corriendo en ...
+      |             ^
+  169 |     }
+  170 |
+  171 |     if (!response.ok) { {
+  digest: '1195717109'
+}

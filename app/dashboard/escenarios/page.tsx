@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Layers, Plus, Copy, Trash2, CheckCircle2, Clock, Archive,
+  Plus, Copy, Trash2, CheckCircle2, Clock,
   ArrowRight, X, GitBranch, Zap, Calendar, Users, Home, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '@/app/context/ToastContext';
 import { getEscenarios, createEscenario, deleteEscenario, publishEscenario, duplicateEscenario, runOptimizationForEscenario, assignSessionToSlot, removeSession, moveSessionToSlot } from './actions';
 
 type ScenarioStatus = 'published' | 'draft' | 'simulation';
@@ -27,6 +28,27 @@ interface CicloOption {
   nom_ciclo: string;
 }
 
+const TEACHER_COLORS = [
+  { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af', name: '#2563eb' },
+  { bg: '#fce7f3', border: '#f9a8d4', text: '#9d174d', name: '#db2777' },
+  { bg: '#d1fae5', border: '#6ee7b7', text: '#065f46', name: '#059669' },
+  { bg: '#fef3c7', border: '#fcd34d', text: '#92400e', name: '#d97706' },
+  { bg: '#ede9fe', border: '#c4b5fd', text: '#5b21b6', name: '#7c3aed' },
+  { bg: '#fee2e2', border: '#fca5a5', text: '#991b1b', name: '#dc2626' },
+  { bg: '#e0f2fe', border: '#7dd3fc', text: '#075985', name: '#0284c7' },
+  { bg: '#fdf4ff', border: '#f0abfc', text: '#86198f', name: '#c026d3' },
+  { bg: '#d9f99d', border: '#a3e635', text: '#3f6212', name: '#65a30d' },
+  { bg: '#ffedd5', border: '#fdba74', text: '#7c2d12', name: '#ea580c' },
+];
+
+function getTeacherColor(teacherId: string) {
+  let hash = 0;
+  for (let i = 0; i < teacherId.length; i++) {
+    hash = ((hash << 5) - hash) + teacherId.charCodeAt(i);
+  }
+  return TEACHER_COLORS[Math.abs(hash) % TEACHER_COLORS.length];
+}
+
 const STATUS_CFG = {
   published: { label: 'Publicado', color: '#059669', bg: '#f0fdf4', border: '#a7f3d0', dot: '#10b981', Icon: CheckCircle2 },
   draft: { label: 'Borrador', color: '#b45309', bg: '#fffbeb', border: '#fde68a', dot: '#f59e0b', Icon: Clock },
@@ -38,6 +60,7 @@ const FALLBACK_SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:3
 const FALLBACK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
 export default function EscenariosPage() {
+  const { toast } = useToast();
   const { user } = useAuth();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -89,8 +112,8 @@ export default function EscenariosPage() {
     fetch('/api/master-data')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.dias) setDays(data.dias.map((d: any) => d.nom_dia));
-        if (data?.bloques) setSlots(data.bloques.map((b: any) => `${b.horario_inicio}-${b.horario_fin}`));
+        if (data?.dias) setDays(data.dias.map((d: { nom_dia: string }) => d.nom_dia));
+        if (data?.bloques) setSlots(data.bloques.map((b: { horario_inicio: string; horario_fin: string }) => `${b.horario_inicio}-${b.horario_fin}`));
       })
       .catch(() => {});
   }, []);
@@ -153,7 +176,7 @@ export default function EscenariosPage() {
       setCiclos([]);
     } catch (e) {
       console.error(e);
-      alert('Error creando escenario');
+      toast('Error creando escenario', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -174,8 +197,8 @@ export default function EscenariosPage() {
       await deleteEscenario(id);
       setSelected(null);
       await loadData();
-    } catch (e: any) {
-      alert(e.message);
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Error', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -187,8 +210,8 @@ export default function EscenariosPage() {
       const nuevo = await duplicateEscenario(id);
       await loadData();
       setSelected(nuevo.id_escenario);
-    } catch (e: any) {
-      alert(e.message);
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Error', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -211,8 +234,8 @@ export default function EscenariosPage() {
       } else {
         setOptimizationResult(null);
       }
-    } catch (e: any) {
-      alert(e.message);
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Error', 'error');
       setOptimizationResult(null);
     } finally {
       setIsProcessing(false);
@@ -230,11 +253,11 @@ export default function EscenariosPage() {
         setScheduleData(data.sessions || data);
         setTeachersAvail(data.teachersAvailability || {});
       } else {
-        alert('Error al cargar horario');
+        toast('Error al cargar horario', 'error');
       }
     } catch(e) {
       console.error(e);
-      alert('Error de conexión');
+      toast('Error de conexión', 'error');
     } finally {
       setLoadingSchedule(false);
     }
@@ -255,11 +278,11 @@ export default function EscenariosPage() {
         setTeachersAvail(data.teachersAvailability || {});
         setEditData({ asignaciones: data.asignaciones || [], aulas: data.aulas || [], tipoMapping: data.tipoMapping || {} });
       } else {
-        alert('Error al cargar datos del editor');
+        toast('Error al cargar datos del editor', 'error');
       }
     } catch(e) {
       console.error(e);
-      alert('Error de conexión');
+      toast('Error de conexión', 'error');
     } finally {
       setLoadingSchedule(false);
     }
@@ -371,8 +394,8 @@ export default function EscenariosPage() {
         setTeachersAvail(data.teachersAvailability || {});
       }
       await loadData();
-    } catch (err: any) {
-      setDragFeedback(`✗ ${err.message}`);
+    } catch (err: unknown) {
+      setDragFeedback(`✗ ${err instanceof Error ? err.message : 'Error'}`);
       setTimeout(() => setDragFeedback(''), 4000);
     } finally {
       setDraggedItem(null);
@@ -832,8 +855,9 @@ export default function EscenariosPage() {
                               );
                               const isHovered = hoveredDay === day && hoveredSlot === slot && isValid;
 
-                              let bg = s ? '#f0fdf4' : 'var(--bg-secondary)';
-                              let border = s ? '#a7f3d0' : 'var(--border-light)';
+                              const tcEdit = s ? getTeacherColor(s.teacherId || s.id_docente) : null;
+                              let bg = tcEdit ? tcEdit.bg : 'var(--bg-secondary)';
+                              let border = tcEdit ? tcEdit.border : 'var(--border-light)';
                               if (isHovered) { bg = '#fefce8'; border = '#facc15'; }
                               else if (draggedItem && isValid && !s) { border = '#86efac'; }
 
@@ -853,19 +877,22 @@ export default function EscenariosPage() {
                                     outline: isHovered ? '2px solid #eab308' : 'none',
                                     outlineOffset: 1,
                                   }}>
-                                  {cellsAtSlot.length > 0 ? cellsAtSlot.map(sess => (
+                                  {cellsAtSlot.length > 0 ? cellsAtSlot.map(sess => {
+                                    const tc = getTeacherColor(sess.teacherId || sess.id_docente);
+                                    return (
                                     <div key={sess.id} draggable
                                       onDragStart={e => { e.stopPropagation(); handleDragStart(e, { type: 'assigned', data: sess }); }}
-                                      style={{ cursor: 'grab', flex: 1, display: 'flex', flexDirection: 'column', gap: 3, userSelect: 'none', marginBottom: 4 }}>
-                                      <div style={{ fontSize: 11, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{sess.courseName}</div>
-                                      <div style={{ fontSize: 10, fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      style={{ cursor: 'grab', flex: 1, display: 'flex', flexDirection: 'column', gap: 3, userSelect: 'none', marginBottom: 4, background: tc.bg, borderRadius: 8, padding: '4px 6px' }}>
+                                      <div style={{ fontSize: 11, fontWeight: 800, color: tc.text, lineHeight: 1.2 }}>{sess.courseName}</div>
+                                      <div style={{ fontSize: 10, fontWeight: 600, color: tc.name, display: 'flex', alignItems: 'center', gap: 4 }}>
                                         <Users style={{ width: 9, height: 9 }} /> {sess.teacherName}
                                       </div>
-                                      <div style={{ fontSize: 9, color: '#047857', fontWeight: 500 }}>
+                                      <div style={{ fontSize: 9, color: tc.text, fontWeight: 500 }}>
                                         <Home style={{ width: 9, height: 9, display: 'inline', verticalAlign: '-1px' }} /> {sess.roomName}
                                       </div>
                                     </div>
-                                  )) : (
+                                    );
+                                  }) : (
                                     isHovered ? (
                                       <div style={{ fontSize: 10, fontWeight: 600, color: '#a16207', textAlign: 'center', marginTop: 'auto' }}>
                                         Soltar aquí
@@ -918,8 +945,9 @@ export default function EscenariosPage() {
                                       );
                                       const isHovered = hoveredDay === day && hoveredSlot === slot && isValid;
 
-                                      let bg = sess ? '#f0fdf4' : 'var(--bg-secondary)';
-                                      let border = sess ? '#a7f3d0' : 'var(--border-light)';
+                                      const tc = sess ? getTeacherColor(sess.teacherId || sess.id_docente) : null;
+                                      let bg = tc ? tc.bg : 'var(--bg-secondary)';
+                                      let border = tc ? tc.border : 'var(--border-light)';
                                       if (isHovered) { bg = '#fefce8'; border = '#facc15'; }
                                       else if (draggedItem && isValid && !sess) { border = '#86efac'; }
 
@@ -945,8 +973,8 @@ export default function EscenariosPage() {
                                             <div draggable={conflictMode}
                                               onDragStart={e => { e.stopPropagation(); handleDragStart(e, { type: 'assigned', data: sess }); }}
                                               style={{ cursor: conflictMode ? 'grab' : 'default', flex: 1, display: 'flex', flexDirection: 'column', gap: 3, userSelect: 'none' }}>
-                                              <div style={{ fontSize: 12, fontWeight: 800, color: '#065f46', lineHeight: 1.2 }}>{sess.courseName}</div>
-                                              <div style={{ fontSize: 11, fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4, marginTop: 'auto' }}>
+                                              <div style={{ fontSize: 12, fontWeight: 800, color: tc!.text, lineHeight: 1.2 }}>{sess.courseName}</div>
+                                              <div style={{ fontSize: 11, fontWeight: 600, color: tc!.name, display: 'flex', alignItems: 'center', gap: 4, marginTop: 'auto' }}>
                                                 {scheduleViewBy === 'teacher' ? <Home style={{ width: 10, height: 10 }} /> : <Users style={{ width: 10, height: 10 }} />}
                                                 {scheduleViewBy === 'teacher' ? sess.roomName : sess.teacherName}
                                               </div>

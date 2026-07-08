@@ -1,7 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { prisma } from '../../../lib/prisma';
 import { DEFAULT_MODALIDAD } from '../../../lib/constants';
+import { getSessionFromRequest, handleApiError } from '@/lib/auth';
+import { sanitizeTipoCurso, formatDocenteDisponibilidad } from '@/lib/utils';
 
 const DAYS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
 const SLOTS = [
@@ -15,50 +17,10 @@ const SLOTS = [
   { inicio: '20:50', fin: '22:20' }
 ];
 
-const sanitizeTipoCurso = (type: string): string => {
-  const t = String(type ?? '').trim().toLowerCase();
-  if (['theoretical', 'programming', 'electronics', 'nursing'].includes(t)) {
-    return t;
-  }
-  if (t.includes('teoric') || t.includes('obligatorio') || t.includes('general')) {
-    return 'theoretical';
-  }
-  if (t.includes('program') || t.includes('computa')) {
-    return 'programming';
-  }
-  if (t.includes('electron')) {
-    return 'electronics';
-  }
-  if (t.includes('enferm')) {
-    return 'nursing';
-  }
-  return 'theoretical';
-};
-
-const formatDocente = (d: any) => {
-  if (!d) return null;
-  const availability: Record<number, number[]> = {
-    0: [], 1: [], 2: [], 3: [], 4: []
-  };
-  d.disponibilidad_docente?.forEach((dd: any) => {
-    if (availability[dd.id_dia]) {
-      availability[dd.id_dia].push(dd.id_bloque);
-    }
-  });
-  return {
-    id_docente: d.id_docente,
-    dni_docente: d.dni_docente,
-    nom_docente: d.nom_docente,
-    ape_docente: d.ape_docente,
-    nom_especialidad: d.nom_especialidad,
-    disponibilidad: availability
-  };
-};
-
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
 
     const publishedEscenario = await prisma.escenario.findFirst({
       where: { estado: 'published', creado_por: userId || undefined }
@@ -116,7 +78,7 @@ export async function GET(request: Request) {
 
     const formatted = sessions.map(s => {
       const curso = s.asignacion?.curso;
-      const docente = formatDocente(s.docente);
+      const docente = formatDocenteDisponibilidad(s.docente);
       const formattedCurso = curso ? {
         ...curso,
         docente: docente,
@@ -140,30 +102,31 @@ export async function GET(request: Request) {
 
     return NextResponse.json(formatted);
   } catch (error) {
-    console.error("Error al obtener datos:", error);
-    return NextResponse.json({ error: "Error al obtener datos" }, { status: 500 });
+    return handleApiError(error, 'GET horarios');
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (userId) {
-      await prisma.horario_sesion.deleteMany({ where: { id_usuario: userId } });
-    } else {
-      await prisma.horario_sesion.deleteMany();
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
+    await prisma.horario_sesion.deleteMany({ where: { id_usuario: session.userId } });
     return NextResponse.json({ message: 'Todos los horarios eliminados exitosamente' });
-  } catch (error: any) {
-    console.error('Error al limpiar horarios:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, 'DELETE horarios');
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+    const userId = session.userId;
+
     const datos = await request.json();
 
     if (!Array.isArray(datos)) {
@@ -178,45 +141,43 @@ export async function POST(request: Request) {
     const esGeneradorInterno = datos[0] && (datos[0].courseId !== undefined || datos[0].roomId !== undefined);
 
     if (esGeneradorInterno) {
+      const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+      const idPeriodoActivo = periodo?.id_periodo;
+      if (!idPeriodoActivo) {
+        return NextResponse.json({ error: 'No hay un periodo académico activo' }, { status: 400 });
+      }
+
       const count = await prisma.$transaction(async (tx) => {
-        const firstUserId = datos[0].userId;
-        if (firstUserId) {
-          await tx.horario_sesion.deleteMany({ where: { id_usuario: firstUserId } });
-        } else {
-          await tx.horario_sesion.deleteMany();
-        }
+        await tx.horario_sesion.deleteMany({ where: { id_usuario: session.userId } });
 
         let creadosCount = 0;
         for (const sesion of datos) {
-          const { courseId, teacherId, roomId, sessionType, day, slot, userId } = sesion;
+          const { courseId, teacherId, roomId, sessionType, day, slot } = sesion;
 
           if (courseId && roomId && teacherId && day !== undefined && slot !== undefined) {
-            // Asegurar que exista la asignacion en periodo Actual
             let asg = await tx.asignacion.findFirst({
               where: {
                 id_curso: courseId,
-                id_periodo: 'Actual',
+                id_periodo: idPeriodoActivo,
               }
             });
 
             if (!asg) {
               asg = await tx.asignacion.create({
                 data: {
-                  id_asignacion: `${courseId}-Actual`,
+                  id_asignacion: `${courseId}-${idPeriodoActivo}`,
                   id_docente: teacherId,
                   id_curso: courseId,
-                  id_periodo: 'Actual',
+                  id_periodo: idPeriodoActivo,
                 }
               });
             } else if (asg.id_docente !== teacherId) {
-              // Si cambió el docente, actualizamos la asignación
               asg = await tx.asignacion.update({
                 where: { id_asignacion: asg.id_asignacion },
                 data: { id_docente: teacherId }
               });
             }
 
-            // Validar capacidad del aula vs alumnos del curso
             const aulaData = await tx.aula.findUnique({ where: { id_aula: roomId } });
             const cursoData = await tx.curso.findUnique({ where: { id_curso: courseId } });
 
@@ -229,12 +190,12 @@ export async function POST(request: Request) {
                 id_horario: randomUUID(),
                 id_asignacion: asg.id_asignacion,
                 id_docente: teacherId,
-                id_periodo: 'Actual',
+                id_periodo: idPeriodoActivo,
                 id_aula: roomId,
                 id_dia: day,
                 id_bloque: slot,
                 tipo_sesion: sessionType || 'theoretical',
-                id_usuario: userId,
+                id_usuario: session.userId,
               }
             });
             creadosCount++;
@@ -246,7 +207,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Horario generado guardado exitosamente', count });
     }
 
-    // SI NO, se asume que es la lógica original de Importación de Excel (adaptada al nuevo schema)
     const normalize = (value: any) => String(value ?? '').trim();
     const normalizeRow = (row: any) => {
       const normalized: Record<string, any> = {};
@@ -265,48 +225,34 @@ export async function POST(request: Request) {
       return '';
     };
 
-    // Pre-requisito: asegurar entidades base antes de importar
-    await prisma.facultad.upsert({
-      where: { id_facultad: 'F01' },
-      update: {},
-      create: { id_facultad: 'F01', nom_facultad: 'General' },
-    });
+    const facultad =
+      (await prisma.facultad.findFirst()) ||
+      (await prisma.facultad.create({ data: { id_facultad: `F-${randomUUID().slice(0, 8)}`, nom_facultad: 'General' } }));
 
-    await prisma.carrera.upsert({
-      where: { id_carrera: 'C01' },
-      update: {},
-      create: { id_carrera: 'C01', nom_carrera: 'General', id_facultad: 'F01' },
-    });
+    const carrera =
+      (await prisma.carrera.findFirst()) ||
+      (await prisma.carrera.create({ data: { id_carrera: `C-${randomUUID().slice(0, 8)}`, nom_carrera: 'General', id_facultad: facultad.id_facultad } }));
 
-    await prisma.ciclo.upsert({
-      where: { id_ciclo: 1 },
-      update: {},
-      create: { id_ciclo: 1, nom_ciclo: '1' },
-    });
-
-    await prisma.tipo_aula.upsert({
-      where: { id_tipo_aula: 'T1' },
-      update: {},
-      create: { id_tipo_aula: 'T1', nom_tipo_aula: 'General' },
-    });
-
-    await prisma.periodo_academico.upsert({
-      where: { id_periodo: 'Actual' },
-      update: {},
-      create: { id_periodo: 'Actual', nom_periodo: 'Periodo Actual', activo: true }
-    });
-
-    // Limpiar horarios anteriores para evitar conflictos en la nueva importación
-    const firstUserId = datos[0]?.userId;
-    if (firstUserId) {
-      await prisma.horario_sesion.deleteMany({ where: { id_usuario: firstUserId } });
-    } else {
-      await prisma.horario_sesion.deleteMany();
+    let ciclo = await prisma.ciclo.findFirst();
+    if (!ciclo) {
+      ciclo = await prisma.ciclo.create({ data: { id_ciclo: 1, nom_ciclo: '1' } });
     }
+
+    let tipoAula = await prisma.tipo_aula.findFirst();
+    if (!tipoAula) {
+      tipoAula = await prisma.tipo_aula.create({ data: { id_tipo_aula: `T-${randomUUID().slice(0, 8)}`, nom_tipo_aula: 'General' } });
+    }
+
+    const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+    const idPeriodoActivo = periodo?.id_periodo;
+    if (!idPeriodoActivo) {
+      return NextResponse.json({ error: 'No hay un periodo académico activo' }, { status: 400 });
+    }
+
+    await prisma.horario_sesion.deleteMany({ where: { id_usuario: session.userId } });
 
     for (const [index, filaRaw] of datos.entries()) {
       const fila = normalizeRow(filaRaw);
-      const userId = filaRaw.userId;
       const idCurso = normalize(pick(fila, 'id_curso', 'curso')) || `curso-${index + 1}`;
       const cursoName = normalize(pick(fila, 'nom_curso', 'curso', 'CURSO', 'Curso')) || idCurso;
       const idAula = normalize(pick(fila, 'id_aula', 'aula', 'AULA', 'Aula')) || `AULA-${index + 1}`;
@@ -342,10 +288,10 @@ export async function POST(request: Request) {
           id_curso: idCurso,
           nom_curso: cursoName,
           creditos: 1,
-          id_carrera: 'C01',
+          id_carrera: carrera.id_carrera,
           modalidad: DEFAULT_MODALIDAD,
           tipo_curso: 'theoretical',
-          id_ciclo: 1,
+          id_ciclo: ciclo.id_ciclo,
           id_usuario: userId,
         },
       });
@@ -357,7 +303,7 @@ export async function POST(request: Request) {
         create: {
           id_aula: idAula,
           nom_aula: aulaName,
-          id_tipo_aula: 'T1',
+          id_tipo_aula: tipoAula.id_tipo_aula,
           capacidad: 30,
           id_usuario: userId,
         },
@@ -383,7 +329,7 @@ export async function POST(request: Request) {
           id_docente_id_curso_id_periodo: {
             id_docente: idDocente,
             id_curso: idCurso,
-            id_periodo: 'Actual',
+            id_periodo: idPeriodoActivo,
           }
         }
       });
@@ -391,10 +337,10 @@ export async function POST(request: Request) {
       if (!asg) {
         asg = await prisma.asignacion.create({
           data: {
-            id_asignacion: `${idCurso}-Actual`,
+            id_asignacion: `${idCurso}-${idPeriodoActivo}`,
             id_docente: idDocente,
             id_curso: idCurso,
-            id_periodo: 'Actual',
+            id_periodo: idPeriodoActivo,
           }
         });
       }
@@ -423,7 +369,7 @@ export async function POST(request: Request) {
           id_horario: randomUUID(),
           id_asignacion: asg.id_asignacion,
           id_docente: idDocente,
-          id_periodo: 'Actual',
+          id_periodo: idPeriodoActivo,
           id_aula: idAula,
           id_dia: id_dia,
           id_bloque: id_bloque,
@@ -434,11 +380,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ message: 'Importado con éxito' });
-  } catch (error: any) {
-    console.error('Error al importar:', error);
-    if (error.message === 'El aula seleccionada no tiene capacidad suficiente para el número de alumnos de este curso.') {
+  } catch (error) {
+    if (error instanceof Error && error.message === 'El aula seleccionada no tiene capacidad suficiente para el número de alumnos de este curso.') {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return handleApiError(error, 'POST horarios (import)');
   }
 }

@@ -35,8 +35,8 @@ export default function RecursosPage() {
     fetch('/api/master-data')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.dias) setDays(data.dias.map((d: any) => d.nom_dia));
-        if (data?.bloques) setSlots(data.bloques.map((b: any) => `${b.horario_inicio}-${b.horario_fin}`));
+        if (data?.dias) setDays(data.dias.map((d: { nom_dia: string }) => d.nom_dia));
+        if (data?.bloques) setSlots(data.bloques.map((b: { horario_inicio: string; horario_fin: string }) => `${b.horario_inicio}-${b.horario_fin}`));
       })
       .catch(() => {});
   }, []);
@@ -83,8 +83,8 @@ export default function RecursosPage() {
       const updated = await getDocentes();
       setTeachers(updated);
       setModal({ ...modal, open: false });
-    } catch (e: any) {
-      setErrorMsg(e.message);
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : 'Error al guardar');
     } finally {
       setIsSaving(false);
     }

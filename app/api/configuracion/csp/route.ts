@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionFromRequest, handleApiError } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -15,42 +16,44 @@ export async function GET() {
 
     return NextResponse.json(config);
   } catch (error) {
-    console.error('Error en GET /api/configuracion/csp:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return handleApiError(error, 'GET configuracion/csp');
   }
 }
 
-export async function PUT(request: Request) {
+function validateInt(value: unknown, fallback: number): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
+}
+
+function validateBool(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+export async function PUT(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
-    const {
-      dias_por_semana,
-      bloques_por_dia,
-      horas_max_por_profesor,
-      timeout_segundos,
-      modo_relajado,
-      sesiones_max_por_dia_profesor,
-    } = body;
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+    }
+
+    const data = {
+      dias_por_semana: validateInt(body.dias_por_semana, 5),
+      bloques_por_dia: validateInt(body.bloques_por_dia, 8),
+      horas_max_por_profesor: validateInt(body.horas_max_por_profesor, 40),
+      timeout_segundos: validateInt(body.timeout_segundos, 60),
+      modo_relajado: validateBool(body.modo_relajado, false),
+      sesiones_max_por_dia_profesor: validateInt(body.sesiones_max_por_dia_profesor, 1),
+    };
 
     await prisma.configuracion_csp.upsert({
       where: { id: 'global' },
-      create: {
-        id: 'global',
-        dias_por_semana: dias_por_semana ?? 5,
-        bloques_por_dia: bloques_por_dia ?? 8,
-        horas_max_por_profesor: horas_max_por_profesor ?? 40,
-        timeout_segundos: timeout_segundos ?? 60,
-        modo_relajado: modo_relajado ?? false,
-        sesiones_max_por_dia_profesor: sesiones_max_por_dia_profesor ?? 1,
-      },
-      update: {
-        ...(dias_por_semana !== undefined && { dias_por_semana }),
-        ...(bloques_por_dia !== undefined && { bloques_por_dia }),
-        ...(horas_max_por_profesor !== undefined && { horas_max_por_profesor }),
-        ...(timeout_segundos !== undefined && { timeout_segundos }),
-        ...(modo_relajado !== undefined && { modo_relajado }),
-        ...(sesiones_max_por_dia_profesor !== undefined && { sesiones_max_por_dia_profesor }),
-      },
+      create: { id: 'global', ...data },
+      update: data,
     });
 
     const config = await prisma.configuracion_csp.findUnique({
@@ -59,7 +62,6 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(config);
   } catch (error) {
-    console.error('Error en PUT /api/configuracion/csp:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return handleApiError(error, 'PUT configuracion/csp');
   }
 }

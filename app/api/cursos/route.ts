@@ -1,40 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { DEFAULT_MODALIDAD } from '@/lib/constants'
+import { getSessionFromRequest, handleApiError } from '@/lib/auth'
+import { sanitizeTipoCurso, mapProgramToCarreraId } from '@/lib/utils'
 
-const mapProgramToCarreraId = (program: string): string => {
-  if (!program) return "C01";
-  const norm = program.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (norm.includes("computa")) return "C02";
-  if (norm.includes("electron")) return "C03";
-  if (norm.includes("enferm")) return "C04";
-  return "C01";
-};
-
-const sanitizeTipoCurso = (type: string): string => {
-  const t = String(type ?? '').trim().toLowerCase();
-  if (['theoretical', 'programming', 'electronics', 'nursing'].includes(t)) {
-    return t;
-  }
-  if (t.includes('teoric') || t.includes('obligatorio') || t.includes('general')) {
-    return 'theoretical';
-  }
-  if (t.includes('program') || t.includes('computa')) {
-    return 'programming';
-  }
-  if (t.includes('electron')) {
-    return 'electronics';
-  }
-  if (t.includes('enferm')) {
-    return 'nursing';
-  }
-  return 'theoretical';
-};
-
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
+
+    const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+    const idPeriodoActivo = periodo?.id_periodo;
 
     const cursos = await prisma.curso.findMany({
       where: userId ? { id_usuario: userId } : {},
@@ -43,12 +19,10 @@ export async function GET(request: Request) {
         ciclo: true,
         plan: true,
         asignacion: {
-          where: { id_periodo: 'Actual' },
+          where: { id_periodo: idPeriodoActivo ?? undefined },
           include: {
             docente: {
-              include: {
-                disponibilidad_docente: true
-              }
+              include: { disponibilidad_docente: true }
             }
           }
         }
@@ -100,19 +74,19 @@ export async function GET(request: Request) {
 
     return NextResponse.json(formattedCursos);
   } catch (error) {
-    console.error('Error fetching cursos:', error);
-    return NextResponse.json(
-      { error: 'Error al obtener cursos' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET cursos');
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json()
 
-    // Soporte para formato de frontend e interno
     const id_curso = body.id || body.id_curso
     const nom_curso = body.name || body.nom_curso
     const tipo_curso = body.type || body.tipo_curso
@@ -123,15 +97,17 @@ export async function POST(request: Request) {
     const horas_practicas = body.practicalHours !== undefined ? Number(body.practicalHours) : 0
     const alumnos = body.students !== undefined ? Number(body.students) : 0
     const id_docente = body.teacherId !== undefined ? body.teacherId : body.id_docente
-    const id_usuario = body.userId
 
     const id_carrera = body.id_carrera || mapProgramToCarreraId(body.program || '')
 
     if (!id_curso || !nom_curso || !id_carrera) {
-      return NextResponse.json(
-        { error: 'El ID, Nombre y Carrera son requeridos' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'El ID, Nombre y Carrera son requeridos' }, { status: 400 })
+    }
+
+    const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+    const idPeriodoActivo = periodo?.id_periodo;
+    if (!idPeriodoActivo) {
+      return NextResponse.json({ error: 'No hay un periodo académico activo' }, { status: 400 });
     }
 
     const sanitizedTipoCurso = sanitizeTipoCurso(tipo_curso);
@@ -150,17 +126,17 @@ export async function POST(request: Request) {
           horas_practicas,
           alumnos,
           id_plan: body.id_plan || 'PLAN_GEN',
-          id_usuario,
+          id_usuario: session.userId,
         },
       });
 
       if (id_docente) {
         await tx.asignacion.create({
           data: {
-            id_asignacion: `${id_curso}-Actual`,
+            id_asignacion: `${id_curso}-${idPeriodoActivo}`,
             id_docente,
             id_curso,
-            id_periodo: 'Actual',
+            id_periodo: idPeriodoActivo,
           }
         });
       }
@@ -175,19 +151,10 @@ export async function POST(request: Request) {
         id_docente: id_docente || null
       }
     })
-  } catch (error: any) {
-    console.error('Error al registrar curso:', error)
-
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Ya existe un curso con este ID' },
-        { status: 400 }
-      )
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && (error as any).code === 'P2002') {
+      return NextResponse.json({ error: 'Ya existe un curso con este ID' }, { status: 400 })
     }
-
-    return NextResponse.json(
-      { error: 'Error al procesar la solicitud' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'POST cursos');
   }
 }
