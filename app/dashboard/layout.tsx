@@ -29,6 +29,31 @@ interface NotifPrefs {
   email: boolean;
 }
 
+interface SearchCurso {
+  id_curso: string;
+  nom_curso: string;
+  carrera: { nom_carrera: string } | null;
+}
+
+interface SearchDocente {
+  id_docente: string;
+  nom_docente: string;
+  ape_docente: string;
+  dni_docente: string;
+}
+
+interface SearchAula {
+  id_aula: string;
+  nom_aula: string;
+  tipo_aula: { nom_tipo_aula: string };
+}
+
+interface SearchResults {
+  cursos: SearchCurso[];
+  docentes: SearchDocente[];
+  aulas: SearchAula[];
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, loading } = useAuth();
   const { effectiveTheme } = useTheme();
@@ -40,6 +65,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs | null>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const filteredNotifs = useMemo(() => {
     if (!notifPrefs) return notifs;
@@ -93,6 +124,53 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (e.key === 'Escape') {
+        setSearchOpen(false);
+        searchInputRef.current?.blur();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults(null);
+      setSearchOpen(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(`/api/buscar?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
+          setSearchOpen(true);
+        }
+      } catch {
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const markRead = async (id: string) => {
     await fetch(`/api/notificaciones/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leida: true }) });
@@ -197,18 +275,70 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Topbar */}
         <header style={{ height: 64, background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0, boxShadow: 'var(--shadow-sm)' }}>
-          <div style={{ position: 'relative', flex: 1, maxWidth: 440 }}>
-            <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--text-tertiary)' }} />
-            <input type="text" placeholder={t('topbar.searchPlaceholder')} style={{
-              width: '100%', padding: '8px 44px 8px 36px', background: 'var(--bg-secondary)', border: '1.5px solid var(--border-color)', borderRadius: 10,
-              fontSize: 13.5, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit',
-            }}
+          <div ref={searchRef} style={{ position: 'relative', flex: 1, maxWidth: 440 }}>
+            <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: 'var(--text-tertiary)', zIndex: 1 }} />
+            <input ref={searchInputRef} type="text" placeholder={t('topbar.searchPlaceholder')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%', padding: '8px 44px 8px 36px', background: 'var(--bg-secondary)', border: '1.5px solid var(--border-color)', borderRadius: 10,
+                fontSize: 13.5, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit',
+              }}
               onFocus={e => { e.target.style.borderColor = 'var(--accent)'; e.target.style.background = 'var(--bg-primary)'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.08)'; }}
               onBlur={e => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.background = 'var(--bg-secondary)'; e.target.style.boxShadow = 'none'; }}
             />
             <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-              <kbd style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 5, padding: '1px 5px', fontFamily: 'monospace' }}>⌘K</kbd>
+              {searchLoading ? (
+                <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>...</span>
+              ) : (
+                <kbd style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 5, padding: '1px 5px', fontFamily: 'monospace' }}>⌘K</kbd>
+              )}
             </div>
+
+            {searchOpen && searchResults && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 6, background: 'var(--bg-primary)', borderRadius: 14, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-lg)', zIndex: 100, overflow: 'hidden', maxHeight: 420, overflowY: 'auto' }}>
+                {searchResults.cursos.length > 0 && (
+                  <div>
+                    <div style={{ padding: '10px 16px 6px', fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Cursos</div>
+                    {searchResults.cursos.map(c => (
+                      <Link key={c.id_curso} href={`/dashboard/gestion-curricular`} onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', textDecoration: 'none', fontSize: 13, color: 'var(--text-primary)', transition: 'background 0.1s' }}>
+                        <BookOpen style={{ width: 14, height: 14, color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                        <span style={{ fontWeight: 500 }}>{c.nom_curso}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-tertiary)' }}>{c.carrera?.nom_carrera ?? ''}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {searchResults.docentes.length > 0 && (
+                  <div>
+                    <div style={{ padding: '10px 16px 6px', fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Docentes</div>
+                    {searchResults.docentes.map(d => (
+                      <Link key={d.id_docente} href={`/dashboard/recursos`} onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', textDecoration: 'none', fontSize: 13, color: 'var(--text-primary)', transition: 'background 0.1s' }}>
+                        <Users style={{ width: 14, height: 14, color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                        <span style={{ fontWeight: 500 }}>{d.nom_docente} {d.ape_docente}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-tertiary)' }}>{d.dni_docente}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {searchResults.aulas.length > 0 && (
+                  <div>
+                    <div style={{ padding: '10px 16px 6px', fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Aulas</div>
+                    {searchResults.aulas.map(a => (
+                      <Link key={a.id_aula} href={`/dashboard/infraestructura`} onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', textDecoration: 'none', fontSize: 13, color: 'var(--text-primary)', transition: 'background 0.1s' }}>
+                        <Building2 style={{ width: 14, height: 14, color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                        <span style={{ fontWeight: 500 }}>{a.nom_aula}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-tertiary)' }}>{a.tipo_aula.nom_tipo_aula}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {searchResults.cursos.length === 0 && searchResults.docentes.length === 0 && searchResults.aulas.length === 0 && (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: 'var(--text-tertiary)' }}>Sin resultados para &quot;{searchQuery}&quot;</div>
+                )}
+              </div>
+            )}
           </div>
           <div ref={notifRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <button onClick={() => setNotifOpen(o => !o)} style={{ position: 'relative', padding: 8, borderRadius: 10, background: notifOpen ? 'var(--bg-hover)' : 'transparent', border: 'none', cursor: 'pointer', color: notifOpen ? 'var(--text-primary)' : 'var(--text-tertiary)', transition: 'all 0.15s' }}

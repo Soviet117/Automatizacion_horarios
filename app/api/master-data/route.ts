@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const [facultades, carreras, ciclos, tiposAula, periodos, planes, tipoSesiones] = await Promise.all([
+    const [facultades, carreras, ciclos, tiposAula, periodos, planes, tipoSesiones, dias, bloques] = await Promise.all([
       prisma.facultad.findMany({
         orderBy: { nom_facultad: 'asc' },
       }),
@@ -25,6 +25,12 @@ export async function GET() {
       prisma.tipo_sesion.findMany({
         orderBy: { nom_tipo_sesion: 'asc' },
       }),
+      prisma.dia_semana.findMany({
+        orderBy: { id_dia: 'asc' },
+      }),
+      prisma.bloque_horario.findMany({
+        orderBy: { id_bloque: 'asc' },
+      }),
     ])
 
     return NextResponse.json({
@@ -35,6 +41,8 @@ export async function GET() {
       periodos,
       planes,
       tipoSesiones,
+      dias,
+      bloques,
     })
   } catch (error) {
     console.error('Error fetching master data:', error)

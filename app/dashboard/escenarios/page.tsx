@@ -34,7 +34,8 @@ const STATUS_CFG = {
 };
 
 const card: React.CSSProperties = { background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' };
-const SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:30', '15:45-17:15', '17:30-19:00', '19:10-20:40', '20:50-22:20'];
+const FALLBACK_SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:30', '15:45-17:15', '17:30-19:00', '19:10-20:40', '20:50-22:20'];
+const FALLBACK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
 export default function EscenariosPage() {
   const { user } = useAuth();
@@ -43,6 +44,8 @@ export default function EscenariosPage() {
   const [modal, setModal] = useState(false);
   
   // Schedule Viewer state
+  const [SLOTS, setSlots] = useState(FALLBACK_SLOTS);
+  const [DAYS, setDays] = useState(FALLBACK_DAYS);
   const [scheduleModal, setScheduleModal] = useState(false);
   const [scheduleData, setScheduleData] = useState<any[]>([]);
   const [scheduleViewBy, setScheduleViewBy] = useState<'teacher' | 'room'>('teacher');
@@ -83,6 +86,13 @@ export default function EscenariosPage() {
   useEffect(() => {
     loadData();
     fetchPlanes();
+    fetch('/api/master-data')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.dias) setDays(data.dias.map((d: any) => d.nom_dia));
+        if (data?.bloques) setSlots(data.bloques.map((b: any) => `${b.horario_inicio}-${b.horario_fin}`));
+      })
+      .catch(() => {});
   }, []);
 
   const fetchPlanes = async () => {
@@ -806,15 +816,15 @@ export default function EscenariosPage() {
                     <div style={{ padding: 20 }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '65px repeat(5, 1fr)', gap: 8 }}>
                         <div></div>
-                        {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(d => (
-                                  <div key={d} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', paddingBottom: 10 }}>{d}</div>
+                        {DAYS.map(d => (
+                          <div key={d} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', paddingBottom: 10 }}>{d}</div>
                         ))}
-                        {[0, 1, 2, 3, 4, 5, 6, 7].map(slot => (
+                        {SLOTS.map((_, slot) => (
                           <React.Fragment key={slot}>
                             <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
                               {SLOTS[slot]}
                             </div>
-                            {[0, 1, 2, 3, 4].map(day => {
+                            {DAYS.map((_, day) => {
                               const cellsAtSlot = scheduleData.filter(s => s.day === day && s.slot === slot);
                               const s = cellsAtSlot[0] || null;
                               const isValid = draggedItem && isSlotValidForTeacher(
@@ -893,15 +903,15 @@ export default function EscenariosPage() {
                             <div style={{ padding: 20 }}>
                               <div style={{ display: 'grid', gridTemplateColumns: '65px repeat(5, 1fr)', gap: 8 }}>
                                 <div></div>
-                                {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(d => (
+                                {DAYS.map(d => (
                           <div key={d} style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', paddingBottom: 10 }}>{d}</div>
                                 ))}
-                                {[0, 1, 2, 3, 4, 5, 6, 7].map(slot => (
+                                {SLOTS.map((_, slot) => (
                                   <React.Fragment key={slot}>
                                     <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
                                       {SLOTS[slot]}
                                     </div>
-                                    {[0, 1, 2, 3, 4].map(day => {
+                                    {DAYS.map((_, day) => {
                                       const sess = sessions.find(x => x.day === day && x.slot === slot);
                                       const isValid = draggedItem && isSlotValidForTeacher(
                                         draggedItem.data.teacherId || draggedItem.data.id_docente, day, slot

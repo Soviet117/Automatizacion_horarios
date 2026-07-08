@@ -3,12 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, ChevronDown } from 'lucide-react';
 
-const ROOM_TYPES = [
-  { value: 'classroom', label: 'Aula Teórica', color: '#3b82f6', bg: '#eff6ff' },
-  { value: 'computer-lab', label: 'Lab. Cómputo', color: '#8b5cf6', bg: '#f5f3ff' },
-  { value: 'workshop', label: 'Taller', color: '#f59e0b', bg: '#fffbeb' },
-  { value: 'practical-lab', label: 'Lab. Práctico', color: '#10b981', bg: '#f0fdf4' },
-];
+const TYPE_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#14b8a6'];
+const TYPE_BGS = ['#eff6ff', '#f5f3ff', '#fffbeb', '#f0fdf4', '#fef2f2', '#fdf2f8', '#f0fdfa'];
 
 const card: React.CSSProperties = { background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 14px', border: '1.5px solid var(--border-color)', borderRadius: 10, fontSize: 14, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', background: 'var(--bg-card)' };
@@ -25,6 +21,27 @@ export default function InfraestructuraPage() {
   const [formCapacity, setFormCapacity] = useState(30);
   const [errorMsg, setErrorMsg] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Load room types from DB
+  const [tiposAula, setTiposAula] = useState<{ id_tipo_aula: string; nom_tipo_aula: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/master-data')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.tiposAula) setTiposAula(data.tiposAula); })
+      .catch(() => {});
+  }, []);
+
+  const getCfg = (type: string) => {
+    const idx = tiposAula.findIndex(t => t.id_tipo_aula === type);
+    if (idx === -1) return { value: type, label: type, color: '#6b7280', bg: '#f3f4f6' };
+    return {
+      value: tiposAula[idx].id_tipo_aula,
+      label: tiposAula[idx].nom_tipo_aula,
+      color: TYPE_COLORS[idx % TYPE_COLORS.length],
+      bg: TYPE_BGS[idx % TYPE_BGS.length],
+    };
+  };
 
   useEffect(() => {
     fetch('/api/aulas')
@@ -66,7 +83,6 @@ export default function InfraestructuraPage() {
   );
 
   const totalCapacity = rooms.reduce((a: number, r: any) => a + r.capacity, 0);
-  const getCfg = (type: string) => ROOM_TYPES.find(r => r.value === type) ?? ROOM_TYPES[0];
 
   const openCreate = () => {
     setEditId(null);
@@ -187,7 +203,7 @@ export default function InfraestructuraPage() {
           <select value={filterType} onChange={e => setFilterType(e.target.value)}
             style={{ ...inputStyle, paddingRight: 32, appearance: 'none', cursor: 'pointer', width: 'auto' }}>
             <option value="">Todos los tipos</option>
-            {ROOM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            {tiposAula.map(t => <option key={t.id_tipo_aula} value={t.id_tipo_aula}>{t.nom_tipo_aula}</option>)}
           </select>
           <ChevronDown style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--text-tertiary)', pointerEvents: 'none' }} />
         </div>
@@ -257,7 +273,7 @@ export default function InfraestructuraPage() {
                 <div>
                   <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 6 }}>Tipo</label>
                   <select value={formType} onChange={e => setFormType(e.target.value)} style={inputStyle}>
-                    {ROOM_TYPES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    {tiposAula.map(t => <option key={t.id_tipo_aula} value={t.id_tipo_aula}>{t.nom_tipo_aula}</option>)}
                   </select>
                 </div>
                 <div>

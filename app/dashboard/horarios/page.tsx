@@ -37,8 +37,8 @@ interface Aula {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-const SLOTS = [
+const FALLBACK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+const FALLBACK_SLOTS = [
   { label: '07:00 – 08:20' },
   { label: '08:30 – 10:00' },
   { label: '10:15 – 11:45' },
@@ -68,13 +68,15 @@ const card: React.CSSProperties = {
   boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
 };
 
-// ── Main Component ─────────────────────────────────────────────────────────
+  // ── Main Component ─────────────────────────────────────────────────────────
 export default function HorariosPage() {
   const [escenarios, setEscenarios] = useState<Escenario[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [courseColors, setCourseColors] = useState<Record<string, string>>({});
+  const [DAYS, setDays] = useState(FALLBACK_DAYS);
+  const [SLOTS, setSlots] = useState(FALLBACK_SLOTS);
   
   // Modal state
   const [aulas, setAulas] = useState<Aula[]>([]);
@@ -88,14 +90,17 @@ export default function HorariosPage() {
     setLoading(true);
     setError(null);
     try {
-      const [res, aulasData] = await Promise.all([
+      const [res, aulasData, masterRes] = await Promise.all([
         fetch('/api/escenarios-con-sesiones'),
-        getAulas()
+        getAulas(),
+        fetch('/api/master-data').then(r => r.ok ? r.json() : null),
       ]);
       if (!res.ok) throw new Error('Error al cargar escenarios');
       const data: Escenario[] = await res.json();
       setEscenarios(data);
       setAulas(aulasData);
+      if (masterRes?.dias) setDays(masterRes.dias.map((d: any) => d.nom_dia));
+      if (masterRes?.bloques) setSlots(masterRes.bloques.map((b: any) => ({ label: `${b.horario_inicio} – ${b.horario_fin}` })));
 
       // Assign stable colors to courses
       const allCourses = Array.from(new Set(data.flatMap(e => e.sessions.map(s => s.course))));

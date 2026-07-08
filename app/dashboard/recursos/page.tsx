@@ -5,8 +5,8 @@ import { getDocentes, createDocente, updateDocente, deleteDocente, getCursos } f
 import { Teacher, Course } from '../../../lib/types';
 import { Users, Plus, Search, Edit2, Trash2, X, Clock, CheckCircle2, BrainCircuit } from 'lucide-react';
 
-const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-const SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:30', '15:45-17:15', '17:30-19:00', '19:10-20:40', '20:50-22:20'];
+const FALLBACK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+const FALLBACK_SLOTS = ['07:00-08:20', '08:30-10:00', '10:15-11:45', '12:00-13:30', '15:45-17:15', '17:30-19:00', '19:10-20:40', '20:50-22:20'];
 
 const card: React.CSSProperties = { background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' };
 
@@ -15,6 +15,8 @@ type ModalType = { open: boolean; type: 'teacher'; editId: string | null };
 export default function RecursosPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
+  const [DAYS, setDays] = useState(FALLBACK_DAYS);
+  const [SLOTS, setSlots] = useState(FALLBACK_SLOTS);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<ModalType>({ open: false, type: 'teacher', editId: null });
   const [tempAvail, setTempAvail] = useState<Record<number, number[]>>({});
@@ -30,6 +32,13 @@ export default function RecursosPage() {
   useEffect(() => {
     getDocentes().then(setTeachers);
     getCursos().then(setCourses);
+    fetch('/api/master-data')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.dias) setDays(data.dias.map((d: any) => d.nom_dia));
+        if (data?.bloques) setSlots(data.bloques.map((b: any) => `${b.horario_inicio}-${b.horario_fin}`));
+      })
+      .catch(() => {});
   }, []);
 
   const filteredTeachers = teachers.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));

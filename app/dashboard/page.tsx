@@ -101,7 +101,8 @@ export default function DashboardPage() {
   const [docentes, setDocentes] = useState<ApiDocente[]>([]);
   const [aulas, setAulas] = useState<ApiAula[]>([]);
   const [sesiones, setSesiones] = useState<ApiSesion[]>([]);
-  const [scenario, setScenario] = useState('Borrador Actual (V3)');
+  const [escenarios, setEscenarios] = useState<any[]>([]);
+  const [scenarioId, setScenarioId] = useState('');
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -110,16 +111,22 @@ export default function DashboardPage() {
     const u = user?.id ?? '';
     const query = u ? `?userId=${u}` : '';
     try {
-      const [cursosRes, docentesRes, aulasRes, horariosRes] = await Promise.allSettled([
+      const [cursosRes, docentesRes, aulasRes, horariosRes, escenariosRes] = await Promise.allSettled([
         fetch(`/api/cursos${query}`).then(r => r.ok ? r.json() : []),
         fetch(`/api/docentes${query}`).then(r => r.ok ? r.json() : []),
         fetch(`/api/aulas${query}`).then(r => r.ok ? r.json() : []),
         fetch(`/api/horarios${query}`).then(r => r.ok ? r.json() : []),
+        fetch(`/api/escenarios?userId=${u}`).then(r => r.ok ? r.json() : []),
       ]);
       if (cursosRes.status === 'fulfilled') setCursos(cursosRes.value);
       if (docentesRes.status === 'fulfilled') setDocentes(docentesRes.value);
       if (aulasRes.status === 'fulfilled') setAulas(aulasRes.value);
       if (horariosRes.status === 'fulfilled') setSesiones(horariosRes.value);
+      if (escenariosRes.status === 'fulfilled') {
+        const data = escenariosRes.value;
+        setEscenarios(data);
+        if (data.length > 0 && !scenarioId) setScenarioId(data[0].id_escenario);
+      }
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Error cargando datos del dashboard:', error);
@@ -265,14 +272,17 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div style={{ position: 'relative' }}>
-              <select value={scenario} onChange={e => setScenario(e.target.value)} style={{
+              <select value={scenarioId} onChange={e => setScenarioId(e.target.value)} style={{
                 appearance: 'none', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
                 borderRadius: 10, padding: '10px 36px 10px 14px', fontSize: 14, fontWeight: 600,
                 color: 'white', cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(8px)',
               }}>
-                <option value="actual" style={{ background: '#1e293b', color: 'white' }}>Borrador Actual (V3)</option>
-                <option value="publicado" style={{ background: '#1e293b', color: 'white' }}>Semestre 2026-I (Publicado)</option>
-                <option value="simulacion" style={{ background: '#1e293b', color: 'white' }}>Simulación de Crecimiento (+20%)</option>
+                {escenarios.length === 0 && <option value="" style={{ background: '#1e293b', color: 'white' }}>Sin escenarios</option>}
+                {escenarios.map(e => (
+                  <option key={e.id_escenario} value={e.id_escenario} style={{ background: '#1e293b', color: 'white' }}>
+                    {e.nom_escenario} ({e.estado})
+                  </option>
+                ))}
               </select>
               <ChevronDown style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }} />
             </div>
@@ -317,10 +327,10 @@ export default function DashboardPage() {
       {/* ── STAT CARDS ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
         {[
-          { label: 'Cursos', value: cursos.length, sub: `${totalCreditos} créditos`, icon: BookOpen, gradient: 'linear-gradient(135deg, #6366f1, #8b5cf6)', shadowColor: 'rgba(99,102,241,0.3)', trend: '+2', trendUp: true },
-          { label: 'Docentes', value: docentes.length, sub: `${totalSesiones} sesiones`, icon: Users, gradient: 'linear-gradient(135deg, #10b981, #059669)', shadowColor: 'rgba(16,185,129,0.3)', trend: '+1', trendUp: true },
-          { label: 'Aulas', value: aulas.length, sub: `${totalCapacidadAulas} capacidad`, icon: Building2, gradient: 'linear-gradient(135deg, #3b82f6, #2563eb)', shadowColor: 'rgba(59,130,246,0.3)', trend: '0', trendUp: true },
-          { label: 'Alumnos', value: totalAlumnos, sub: `${totalHorasRequeridas}h curriculares`, icon: GraduationCap, gradient: 'linear-gradient(135deg, #f59e0b, #d97706)', shadowColor: 'rgba(245,158,11,0.3)', trend: '+15', trendUp: true },
+          { label: 'Cursos', value: cursos.length, sub: `${totalCreditos} créditos`, icon: BookOpen, gradient: 'linear-gradient(135deg, #6366f1, #8b5cf6)', shadowColor: 'rgba(99,102,241,0.3)', badge: `${cursos.filter(c => (c.horas_teoricas || 0) + (c.horas_practicas || 0) > 0).length} activos` },
+          { label: 'Docentes', value: docentes.length, sub: `${totalSesiones} sesiones`, icon: Users, gradient: 'linear-gradient(135deg, #10b981, #059669)', shadowColor: 'rgba(16,185,129,0.3)', badge: `${pctDocentesLibres}% libres` },
+          { label: 'Aulas', value: aulas.length, sub: `${totalCapacidadAulas} capacidad`, icon: Building2, gradient: 'linear-gradient(135deg, #3b82f6, #2563eb)', shadowColor: 'rgba(59,130,246,0.3)', badge: `${demandRatio}% demanda` },
+          { label: 'Alumnos', value: totalAlumnos, sub: `${totalHorasRequeridas}h curriculares`, icon: GraduationCap, gradient: 'linear-gradient(135deg, #f59e0b, #d97706)', shadowColor: 'rgba(245,158,11,0.3)', badge: `${teacherLoad}% carga` },
         ].map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -339,13 +349,10 @@ export default function DashboardPage() {
                     <Icon style={{ width: 20, height: 20, color: 'white' }} />
                   </div>
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 3,
-                    background: stat.trendUp ? '#f0fdf4' : '#fef2f2',
                     padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-                    color: stat.trendUp ? '#16a34a' : '#dc2626',
+                    background: '#f0fdf4', color: '#16a34a',
                   }}>
-                    {stat.trendUp ? <ArrowUpRight style={{ width: 12, height: 12 }} /> : <ArrowDownRight style={{ width: 12, height: 12 }} />}
-                    {stat.trend}
+                    {stat.badge}
                   </div>
                 </div>
                 <div style={{ fontSize: 36, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1, marginBottom: 6, letterSpacing: '-1px' }}>

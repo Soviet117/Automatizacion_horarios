@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Book, Users, Clock, Layers, HelpCircle } from 'lucide-react';
+import { MODALIDADES } from '../lib/constants';
 
 interface Materia {
   id_curso: string;
@@ -257,9 +258,7 @@ export default function MateriaModal({ isOpen, onClose, onSave, materia, maestro
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8 }}>Modalidad *</label>
                   <select required name="modalidad" value={formData.modalidad} onChange={handleChange}
                     style={{ width: '100%', padding: '12px 16px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, fontSize: 14, color: '#0f172a', outline: 'none', cursor: 'pointer' }}>
-                    <option value="Presencial">Presencial</option>
-                    <option value="Virtual">Virtual</option>
-                    <option value="Hibrida">Híbrida</option>
+                    {MODALIDADES.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
               </div>
