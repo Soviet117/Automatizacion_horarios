@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { DEFAULT_MODALIDAD } from '@/lib/constants';
-
-const prisma = new PrismaClient();
+import { getSessionFromRequest, handleApiError } from '@/lib/auth';
 
 // GET all courses
 export async function GET() {
@@ -20,16 +19,16 @@ export async function GET() {
     });
     return NextResponse.json(cursos);
   } catch (error) {
-    console.error('Error fetching courses:', error);
-    return NextResponse.json({ error: 'Failed to fetch courses' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return handleApiError(error, 'GET gestion-curricular');
   }
 }
 
-// POST create a new course
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
     const data = await request.json();
     
     // Validate required fields
@@ -54,19 +53,15 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(newCurso, { status: 201 });
-  } catch (error: any) {
-    console.error('Error creating course:', error);
-    if (error.code === 'P2002') {
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && (error as any).code === 'P2002') {
       return NextResponse.json({ error: 'El ID del curso ya existe.' }, { status: 409 });
     }
-    return NextResponse.json({ error: 'Failed to create course' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return handleApiError(error, 'POST gestion-curricular');
   }
 }
 
-// PUT update an existing course
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     const data = await request.json();
     
@@ -92,15 +87,11 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(updatedCurso);
   } catch (error) {
-    console.error('Error updating course:', error);
-    return NextResponse.json({ error: 'Failed to update course' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return handleApiError(error, 'PUT gestion-curricular');
   }
 }
 
-// DELETE a course
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -115,9 +106,6 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting course:', error);
-    return NextResponse.json({ error: 'Failed to delete course' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    return handleApiError(error, 'DELETE gestion-curricular');
   }
 }

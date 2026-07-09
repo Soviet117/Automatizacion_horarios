@@ -2,15 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, ChevronDown } from 'lucide-react';
+import { useToast } from '@/app/context/ToastContext';
 
 const TYPE_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899', '#14b8a6'];
 const TYPE_BGS = ['#eff6ff', '#f5f3ff', '#fffbeb', '#f0fdf4', '#fef2f2', '#fdf2f8', '#f0fdfa'];
+
+interface Room {
+  id: string;
+  name: string;
+  type: string;
+  capacity: number;
+}
 
 const card: React.CSSProperties = { background: 'var(--bg-card)', borderRadius: 16, border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 14px', border: '1.5px solid var(--border-color)', borderRadius: 10, fontSize: 14, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', background: 'var(--bg-card)' };
 
 export default function InfraestructuraPage() {
-  const [rooms, setRooms] = useState<any[]>([]);
+  const { toast } = useToast();
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -51,7 +60,7 @@ export default function InfraestructuraPage() {
       })
       .then(data => {
         if (Array.isArray(data)) {
-          setRooms(data.map((a: any) => ({
+          setRooms(data.map((a: { id_aula: string; nom_aula: string; id_tipo_aula: string; capacidad: number }) => ({
             id: a.id_aula,
             name: a.nom_aula,
             type: a.id_tipo_aula,
@@ -68,7 +77,7 @@ export default function InfraestructuraPage() {
     if (!res.ok) return;
     const data = await res.json();
     if (Array.isArray(data)) {
-      setRooms(data.map((a: any) => ({
+      setRooms(data.map((a: { id_aula: string; nom_aula: string; id_tipo_aula: string; capacidad: number }) => ({
         id: a.id_aula,
         name: a.nom_aula,
         type: a.id_tipo_aula,
@@ -82,7 +91,7 @@ export default function InfraestructuraPage() {
     (!filterType || r.type === filterType)
   );
 
-  const totalCapacity = rooms.reduce((a: number, r: any) => a + r.capacity, 0);
+  const totalCapacity = rooms.reduce((a: number, r: Room) => a + r.capacity, 0);
 
   const openCreate = () => {
     setEditId(null);
@@ -93,7 +102,7 @@ export default function InfraestructuraPage() {
     setModal(true);
   };
 
-  const openEdit = (room: any) => {
+  const openEdit = (room: Room) => {
     setEditId(room.id);
     setFormName(room.name);
     setFormType(room.type);
@@ -133,15 +142,15 @@ export default function InfraestructuraPage() {
       }
       setModal(false);
       await reloadRooms();
-    } catch (e: any) {
-      setErrorMsg(e.message || 'Error al guardar');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Error al guardar', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('¿Seguro que deseas eliminar este espacio?')) return;
+    if (!window.confirm('¿Estás seguro de eliminar esta aula?')) return;
     try {
       const res = await fetch(`/api/aulas/${id}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -149,8 +158,8 @@ export default function InfraestructuraPage() {
         throw new Error(err.error || 'Error al eliminar');
       }
       await reloadRooms();
-    } catch (e: any) {
-      alert(e.message || 'Error al eliminar');
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : 'Error al eliminar', 'error');
     }
   };
 

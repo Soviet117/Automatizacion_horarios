@@ -1,21 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/auth';
 
 export async function GET() {
   try {
     const escenarios = await prisma.escenario.findMany({
       orderBy: [
-        { estado: 'asc' }, // published first (alphabetically closest)
+        { estado: 'asc' },
         { creado_el: 'desc' }
       ],
       include: {
         horario_sesion: {
           include: {
             asignacion: {
-              include: {
-                curso: true,
-                docente: true,
-              }
+              include: { curso: true, docente: true }
             },
             docente: true,
             aula: true,
@@ -26,7 +24,6 @@ export async function GET() {
       }
     });
 
-    // Sort so published is always first
     const sorted = [...escenarios].sort((a, b) => {
       if (a.estado === 'published') return -1;
       if (b.estado === 'published') return 1;
@@ -55,8 +52,7 @@ export async function GET() {
     }));
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    console.error('Error en /api/escenarios-con-sesiones:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleApiError(error, 'GET escenarios-con-sesiones');
   }
 }

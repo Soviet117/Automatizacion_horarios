@@ -1,44 +1,21 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
-const mapProgramToCarreraId = (program: string): string => {
-  if (!program) return "C01";
-  const norm = program.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (norm.includes("computa")) return "C02";
-  if (norm.includes("electron")) return "C03";
-  if (norm.includes("enferm")) return "C04";
-  return "C01";
-};
-
-const sanitizeTipoCurso = (type: string): string => {
-  const t = String(type ?? '').trim().toLowerCase();
-  if (['theoretical', 'programming', 'electronics', 'nursing'].includes(t)) {
-    return t;
-  }
-  if (t.includes('teoric') || t.includes('obligatorio') || t.includes('general')) {
-    return 'theoretical';
-  }
-  if (t.includes('program') || t.includes('computa')) {
-    return 'programming';
-  }
-  if (t.includes('electron')) {
-    return 'electronics';
-  }
-  if (t.includes('enferm')) {
-    return 'nursing';
-  }
-  return 'theoretical';
-};
+import { getSessionFromRequest, handleApiError } from '@/lib/auth'
+import { sanitizeTipoCurso, mapProgramToCarreraId } from '@/lib/utils'
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { id } = await params
     const body = await request.json()
 
-    // Soporte para formato de frontend e interno
     const nom_curso = body.name || body.nom_curso
     const tipo_curso = body.type !== undefined ? body.type : body.tipo_curso
     const creditos = body.creditos !== undefined ? Number(body.creditos) : undefined
@@ -48,14 +25,10 @@ export async function PUT(
     const horas_practicas = body.practicalHours !== undefined ? Number(body.practicalHours) : undefined
     const alumnos = body.students !== undefined ? Number(body.students) : undefined
     const id_docente = body.teacherId !== undefined ? body.teacherId : body.id_docente
-
     const id_carrera = body.id_carrera || (body.program !== undefined ? mapProgramToCarreraId(body.program) : undefined)
 
     if (nom_curso === '') {
-      return NextResponse.json(
-        { error: 'El nombre del curso es requerido' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'El nombre del curso es requerido' }, { status: 400 })
     }
 
     const curso = await prisma.$transaction(async (tx) => {
@@ -63,36 +36,24 @@ export async function PUT(
       const c = await tx.curso.update({
         where: { id_curso: id },
         data: {
-          creditos,
-          nom_curso,
-          id_carrera,
-          modalidad,
-          tipo_curso: sanitizedTipoCurso,
-          id_ciclo,
-          horas_teoricas,
-          horas_practicas,
-          alumnos,
+          creditos, nom_curso, id_carrera, modalidad,
+          tipo_curso: sanitizedTipoCurso, id_ciclo,
+          horas_teoricas, horas_practicas, alumnos,
           id_plan: body.id_plan !== undefined ? body.id_plan : undefined,
         },
       });
 
       if (id_docente !== undefined) {
-        // Remove existing assignment for this course in the current period
-        await tx.asignacion.deleteMany({
-          where: {
-            id_curso: id,
-            id_periodo: 'Actual'
-          }
-        });
+        const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+        const idPeriodoActivo = periodo?.id_periodo;
 
-        // Add new assignment if teacherId was specified
+        await tx.asignacion.deleteMany({ where: { id_curso: id, id_periodo: idPeriodoActivo ?? undefined } });
+
         if (id_docente) {
           await tx.asignacion.create({
             data: {
-              id_asignacion: `${id}-Actual`,
-              id_docente,
-              id_curso: id,
-              id_periodo: 'Actual'
+              id_asignacion: `${id}-${idPeriodoActivo}`,
+              id_docente, id_curso: id, id_periodo: idPeriodoActivo!
             }
           });
         }
@@ -103,45 +64,30 @@ export async function PUT(
 
     return NextResponse.json({
       message: 'Curso actualizado exitosamente',
-      data: {
-        ...curso,
-        id_docente: id_docente !== undefined ? (id_docente || null) : undefined
-      }
+      data: { ...curso, id_docente: id_docente !== undefined ? (id_docente || null) : undefined }
     })
-  } catch (error: any) {
-    console.error('Error al actualizar curso:', error)
-    return NextResponse.json(
-      { error: 'Error al actualizar el curso' },
-      { status: 500 }
-    )
+  } catch (error) {
+    return handleApiError(error, 'PUT cursos/[id]');
   }
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { id } = await params
 
-    // Eliminar asignaciones del curso (esto también eliminará los horario_sesion asociados por cascade)
-    await prisma.asignacion.deleteMany({
-      where: { id_curso: id }
-    })
+    await prisma.asignacion.deleteMany({ where: { id_curso: id } })
+    await prisma.curso.delete({ where: { id_curso: id } })
 
-    // Eliminar curso
-    await prisma.curso.delete({
-      where: { id_curso: id },
-    })
-
-    return NextResponse.json({
-      message: 'Curso eliminado exitosamente'
-    })
-  } catch (error: any) {
-    console.error('Error al eliminar curso:', error)
-    return NextResponse.json(
-      { error: 'Error al eliminar el curso' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Curso eliminado exitosamente' })
+  } catch (error) {
+    return handleApiError(error, 'DELETE cursos/[id]');
   }
 }

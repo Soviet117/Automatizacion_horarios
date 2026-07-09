@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
+import { useToast } from '@/app/context/ToastContext';
 
 interface ExcelImportProps {
   userId: string;
@@ -9,6 +10,7 @@ interface ExcelImportProps {
 }
 
 export default function ExcelImport({ userId, onImportSuccess }: ExcelImportProps) {
+  const { toast } = useToast();
   const [rawData, setRawData] = useState<any[]>([]);
   const [previewRows, setPreviewRows] = useState<any[]>([]);
   const [previewColumns, setPreviewColumns] = useState<string[]>([]);
@@ -126,7 +128,7 @@ export default function ExcelImport({ userId, onImportSuccess }: ExcelImportProp
       });
 
       if (res.ok) {
-        alert('¡Horarios importados con éxito!');
+        toast('¡Horarios importados con éxito!', 'success');
         setShowPreview(false);
         setRawData([]);
         setPreviewRows([]);

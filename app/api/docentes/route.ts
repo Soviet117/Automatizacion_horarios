@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSessionFromRequest, handleApiError } from '@/lib/auth'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
 
     const docentes = await prisma.docente.findMany({
       where: userId ? { id_usuario: userId } : {},
@@ -37,19 +38,19 @@ export async function GET(request: Request) {
 
     return NextResponse.json(formattedDocentes);
   } catch (error) {
-    console.error('Error fetching docentes:', error);
-    return NextResponse.json(
-      { error: 'Error al obtener docentes' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET docentes');
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json()
 
-    // Soporte para formato de frontend e interno
     const id_docente = body.id || body.id_docente
     const fullName = body.name || body.nom_docente || ''
     const parts = fullName.trim().split(/\s+/)
@@ -58,16 +59,11 @@ export async function POST(request: Request) {
     const dni_docente = body.dni_docente || '00000000'
     const nom_especialidad = body.nom_especialidad || 'General'
     const disponibilidad = body.availability !== undefined ? body.availability : body.disponibilidad
-    const id_usuario = body.userId
 
     if (!id_docente || !nom_docente) {
-      return NextResponse.json(
-        { error: 'El ID y el Nombre son requeridos' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'El ID y el Nombre son requeridos' }, { status: 400 })
     }
 
-    // Crear docente y su disponibilidad en una transaccion
     const docente = await prisma.$transaction(async (tx) => {
       const d = await tx.docente.create({
         data: {
@@ -76,7 +72,7 @@ export async function POST(request: Request) {
           nom_docente,
           ape_docente,
           nom_especialidad,
-          id_usuario,
+          id_usuario: session.userId,
         },
       });
 
@@ -96,9 +92,7 @@ export async function POST(request: Request) {
           }
         }
         if (records.length > 0) {
-          await tx.disponibilidad_docente.createMany({
-            data: records
-          });
+          await tx.disponibilidad_docente.createMany({ data: records });
         }
       }
 
@@ -107,24 +101,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       message: 'Docente registrado exitosamente', 
-      data: {
-        ...docente,
-        disponibilidad
-      }
+      data: { ...docente, disponibilidad }
     })
-  } catch (error: any) {
-    console.error('Error al registrar docente:', error)
-    
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Ya existe un docente con este ID o DNI' },
-        { status: 400 }
-      )
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && (error as any).code === 'P2002') {
+      return NextResponse.json({ error: 'Ya existe un docente con este ID o DNI' }, { status: 400 });
     }
-
-    return NextResponse.json(
-      { error: 'Error al procesar la solicitud' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'POST docentes');
   }
 }

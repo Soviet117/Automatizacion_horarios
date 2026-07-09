@@ -1,11 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSessionFromRequest, handleApiError } from '@/lib/auth'
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { id } = await params
     const body = await request.json()
     
@@ -18,27 +24,17 @@ export async function PUT(
     const disponibilidad = body.availability !== undefined ? body.availability : body.disponibilidad
 
     if (nom_docente === '') {
-      return NextResponse.json(
-        { error: 'El nombre del docente es requerido' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'El nombre del docente es requerido' }, { status: 400 })
     }
 
     const docente = await prisma.$transaction(async (tx) => {
       const d = await tx.docente.update({
         where: { id_docente: id },
-        data: {
-          dni_docente,
-          nom_docente,
-          ape_docente,
-          nom_especialidad,
-        },
+        data: { dni_docente, nom_docente, ape_docente, nom_especialidad },
       });
 
       if (disponibilidad !== undefined) {
-        await tx.disponibilidad_docente.deleteMany({
-          where: { id_docente: id }
-        });
+        await tx.disponibilidad_docente.deleteMany({ where: { id_docente: id } });
 
         if (disponibilidad && typeof disponibilidad === 'object') {
           const records = [];
@@ -48,17 +44,13 @@ export async function PUT(
               for (const bloque of bloques) {
                 records.push({
                   id_disponibilidad: `${id}-${dia}-${bloque}`,
-                  id_docente: id,
-                  id_dia: dia,
-                  id_bloque: bloque,
+                  id_docente: id, id_dia: dia, id_bloque: bloque,
                 });
               }
             }
           }
           if (records.length > 0) {
-            await tx.disponibilidad_docente.createMany({
-              data: records
-            });
+            await tx.disponibilidad_docente.createMany({ data: records });
           }
         }
       }
@@ -67,40 +59,28 @@ export async function PUT(
 
     return NextResponse.json({
       message: 'Docente actualizado exitosamente',
-      data: {
-        ...docente,
-        disponibilidad
-      }
+      data: { ...docente, disponibilidad }
     })
-  } catch (error: any) {
-    console.error('Error al actualizar docente:', error)
-    return NextResponse.json(
-      { error: 'Error al actualizar el docente' },
-      { status: 500 }
-    )
+  } catch (error) {
+    return handleApiError(error, 'PUT docentes/[id]');
   }
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { id } = await params
+    await prisma.docente.delete({ where: { id_docente: id } })
 
-    // Eliminar docente - Cascade eliminará sus disponibilidades, asignaciones e intereses de horario automaticamente
-    await prisma.docente.delete({
-      where: { id_docente: id },
-    })
-
-    return NextResponse.json({
-      message: 'Docente eliminado exitosamente'
-    })
-  } catch (error: any) {
-    console.error('Error al eliminar docente:', error)
-    return NextResponse.json(
-      { error: 'Error al eliminar el docente' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Docente eliminado exitosamente' })
+  } catch (error) {
+    return handleApiError(error, 'DELETE docentes/[id]');
   }
 }

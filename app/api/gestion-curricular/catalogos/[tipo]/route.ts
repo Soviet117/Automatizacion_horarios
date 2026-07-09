@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
+import { getSessionFromRequest, handleApiError } from '@/lib/auth';
 
-export async function POST(req: Request, props: { params: Promise<{ tipo: string }> }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ tipo: string }> }) {
   try {
+    const session = getSessionFromRequest(req);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
     const data = await req.json();
     const params = await props.params;
     const tipo = params.tipo;
@@ -46,17 +51,17 @@ export async function POST(req: Request, props: { params: Promise<{ tipo: string
     }
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    console.error(`Error al crear en catálogo:`, error);
-    return NextResponse.json(
-      { error: 'Error al crear el registro.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, `POST catalogos`);
   }
 }
 
-export async function PUT(req: Request, props: { params: Promise<{ tipo: string }> }) {
+export async function PUT(req: NextRequest, props: { params: Promise<{ tipo: string }> }) {
   try {
+    const session = getSessionFromRequest(req);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
     const data = await req.json();
     const params = await props.params;
     const tipo = params.tipo;
@@ -97,18 +102,18 @@ export async function PUT(req: Request, props: { params: Promise<{ tipo: string 
     }
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    console.error(`Error al actualizar en catálogo:`, error);
-    return NextResponse.json(
-      { error: 'Error al actualizar el registro.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, `PUT catalogos`);
   }
 }
 
-export async function DELETE(req: Request, props: { params: Promise<{ tipo: string }> }) {
-  const params = await props.params;
+export async function DELETE(req: NextRequest, props: { params: Promise<{ tipo: string }> }) {
   try {
+    const session = getSessionFromRequest(req);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+    const params = await props.params;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const tipo = params.tipo;
@@ -140,11 +145,7 @@ export async function DELETE(req: Request, props: { params: Promise<{ tipo: stri
     }
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    console.error(`Error al eliminar en catálogo ${params.tipo}:`, error);
-    return NextResponse.json(
-      { error: 'Error al eliminar el registro. Puede que esté siendo utilizado en otras partes del sistema.' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, `DELETE catalogos`);
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { setSessionCookie } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -24,12 +25,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Contraseña incorrecta' }, { status: 401 });
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       id: user.id_usuario,
       username: user.email,
       name: user.nombre,
       role: user.role
     }, { status: 200 });
+
+    setSessionCookie(response, user.id_usuario);
+    return response;
 
   } catch (error) {
     console.error('Error en login:', error);

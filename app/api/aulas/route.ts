@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSessionFromRequest, handleApiError } from '@/lib/auth'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
 
     const aulas = await prisma.aula.findMany({
       where: userId ? { id_usuario: userId } : {},
@@ -15,24 +16,23 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(aulas);
   } catch (error) {
-    console.error('Error fetching aulas:', error);
-    return NextResponse.json(
-      { error: 'Error al obtener aulas' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'GET aulas');
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const body = await request.json()
 
-    // Soporte para formato de frontend e interno
     const id_aula = body.id || body.id_aula
     const nom_aula = body.name || body.nom_aula
     const id_tipo_aula = body.type || body.id_tipo_aula
     const capacidad = body.capacity !== undefined ? Number(body.capacity) : (body.capacidad !== undefined ? Number(body.capacidad) : 1)
-    const id_usuario = body.userId
 
     if (!id_aula || !nom_aula || !id_tipo_aula) {
       return NextResponse.json(
@@ -41,7 +41,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // Asegurar que el tipo de aula existe en la base de datos
     await prisma.tipo_aula.upsert({
       where: { id_tipo_aula },
       update: {},
@@ -54,7 +53,7 @@ export async function POST(request: Request) {
         nom_aula,
         id_tipo_aula,
         capacidad,
-        id_usuario,
+        id_usuario: session.userId,
       },
     })
 
@@ -62,19 +61,10 @@ export async function POST(request: Request) {
       message: 'Aula registrada exitosamente', 
       data: aula 
     })
-  } catch (error: any) {
-    console.error('Error al registrar aula:', error)
-
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Ya existe un aula con este ID' },
-        { status: 400 }
-      )
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && (error as any).code === 'P2002') {
+      return NextResponse.json({ error: 'Ya existe un aula con este ID' }, { status: 400 });
     }
-
-    return NextResponse.json(
-      { error: 'Error al procesar la solicitud' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'POST aulas');
   }
 }

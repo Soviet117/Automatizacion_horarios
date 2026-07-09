@@ -28,7 +28,7 @@ export default function ReportesPage() {
           const json = await res.json();
           if (json.periodos && json.periodos.length > 0) {
             setPeriodos(json.periodos);
-            const active = json.periodos.find((p: any) => p.activo) || json.periodos[0];
+            const active = json.periodos.find((p: { activo: boolean }) => p.activo) || json.periodos[0];
             setSelectedPeriodo(active.id_periodo);
           }
         }
@@ -149,7 +149,7 @@ export default function ReportesPage() {
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={130} />
                     <Tooltip formatter={(v: any) => [`${v}%`, 'Ocupación']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,.1)' }} />
                     <Bar dataKey="usage" radius={[0, 6, 6, 0]} maxBarSize={20}>
-                      {roomUsageData.map((e: any, i: number) => <Cell key={i} fill={e.usage > 85 ? '#ef4444' : e.usage > 70 ? '#f59e0b' : '#10b981'} />)}
+                      {roomUsageData.map((e: { usage: number }, i: number) => <Cell key={i} fill={e.usage > 85 ? '#ef4444' : e.usage > 70 ? '#f59e0b' : '#10b981'} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -165,14 +165,14 @@ export default function ReportesPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie data={programData} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value">
-                        {programData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        {programData.map((_: unknown, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
                       <Tooltip formatter={(v: any) => [`${v}%`, 'Alumnos']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,.1)' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="flex flex-col gap-2 overflow-y-auto max-h-full pr-2">
-                  {programData.map((p: any, i: number) => (
+                  {programData.map((p: { name: string; value: number }, i: number) => (
                     <div key={p.name} className="flex items-center gap-2 min-w-0">
                       <span className="w-3 h-3 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
                       <span className="text-xs font-medium truncate" title={p.name} style={{ color: 'var(--text-primary)' }}>{p.name}</span>
@@ -200,7 +200,7 @@ export default function ReportesPage() {
                     <Legend iconType="circle" iconSize={8} />
                     <Bar dataKey="max" fill="#e2e8f0" radius={[4, 4, 0, 0]} maxBarSize={30} name="Base 25h" />
                     <Bar dataKey="assigned" fill="#0f172a" radius={[4, 4, 0, 0]} maxBarSize={30} name="Asignado">
-                      {teacherLoadData.map((e: any, i: number) => <Cell key={i} fill={e.assigned >= e.max ? '#ef4444' : '#0f172a'} />)}
+                      {teacherLoadData.map((e: { assigned: number; max: number }, i: number) => <Cell key={i} fill={e.assigned >= e.max ? '#ef4444' : '#0f172a'} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

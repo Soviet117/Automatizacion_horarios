@@ -52,7 +52,7 @@ interface ApiSesion {
   docente?: { nom_docente: string; ape_docente: string };
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { color: string; name: string; value: number }[]; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div style={{
@@ -64,7 +64,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <div style={{ fontSize: 15, fontWeight: 800, color: 'white', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.1)', letterSpacing: '0.03em' }}>
           {label}
         </div>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry: { color: string; name: string; value: number }, index: number) => (
           <div key={index} style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '10px 0' }}>
             <div style={{
               width: 14, height: 14, borderRadius: 5,
