@@ -159,7 +159,11 @@ export async function deleteDocente(id_docente: string) {
 }
 
 export async function getCursos(): Promise<any[]> {
+  const userId = await getCurrentUserId();
+  const userFilter = userId ? { id_usuario: userId } : {};
+
   const cursos = await prisma.curso.findMany({
+    where: userFilter,
     select: { id_curso: true, nom_curso: true }
   });
   return cursos.map((c: any) => ({

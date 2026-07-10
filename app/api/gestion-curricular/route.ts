@@ -3,10 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { DEFAULT_MODALIDAD } from '@/lib/constants';
 import { getSessionFromRequest, handleApiError } from '@/lib/auth';
 
-// GET all courses
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
+
+    const userFilter = userId ? { OR: [{ id_usuario: null }, { id_usuario: userId }] } : {};
+
     const cursos = await prisma.curso.findMany({
+      where: userFilter,
       include: {
         carrera: true,
         ciclo: true,
@@ -30,8 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
     const data = await request.json();
-    
-    // Validate required fields
+
     if (!data.id_curso || !data.nom_curso || !data.id_carrera || data.id_ciclo === undefined || !data.tipo_curso) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -49,6 +53,7 @@ export async function POST(request: NextRequest) {
         horas_practicas: parseInt(data.horas_practicas) || 0,
         alumnos: parseInt(data.alumnos) || 0,
         id_plan: data.id_plan || null,
+        id_usuario: session.userId,
       }
     });
 
@@ -63,10 +68,21 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
     const data = await request.json();
-    
+
     if (!data.id_curso) {
       return NextResponse.json({ error: 'Missing course ID' }, { status: 400 });
+    }
+
+    const existing = await prisma.curso.findFirst({
+      where: { id_curso: data.id_curso, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Curso no encontrado o sin permisos' }, { status: 404 });
     }
 
     const updatedCurso = await prisma.curso.update({
@@ -93,11 +109,22 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'Missing course ID' }, { status: 400 });
+    }
+
+    const existing = await prisma.curso.findFirst({
+      where: { id_curso: id, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Curso no encontrado o sin permisos' }, { status: 404 });
     }
 
     await prisma.curso.delete({

@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionFromRequest } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
+
     const { searchParams } = new URL(request.url);
     const periodo = searchParams.get('periodo');
 
@@ -10,16 +14,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Falta el parámetro periodo' }, { status: 400 });
     }
 
-    // 1. KPI Resumen
-    const totalMaterias = await prisma.curso.count();
+    const userFilter = userId ? { id_usuario: userId } : {};
 
-    // Total horas asignadas (cada bloque cuenta como 1 hora o sesión)
+    const totalMaterias = await prisma.curso.count({ where: userFilter });
+
     const totalSesiones = await prisma.horario_sesion.count({
-      where: { id_periodo: periodo, id_escenario: null },
+      where: { id_periodo: periodo, id_escenario: null, ...userFilter },
     });
 
-    // 2. Uso de Aulas
     const aulas = await prisma.aula.findMany({
+      where: userFilter,
       include: {
         horario_sesion: {
           where: { id_periodo: periodo, id_escenario: null },
@@ -27,7 +31,7 @@ export async function GET(request: Request) {
       }
     });
 
-    const maxBloquesSemana = 8 * 5; // 8 bloques por día, 5 días
+    const maxBloquesSemana = 8 * 5;
 
     const roomUsageData = aulas.map(a => {
       const assigned = a.horario_sesion.length;
@@ -37,18 +41,15 @@ export async function GET(request: Request) {
         usage: Math.min(Math.round(usagePercentage), 100),
         capacity: a.capacidad
       }
-    }).sort((a, b) => b.usage - a.usage).slice(0, 10); // Top 10 aulas más usadas
+    }).sort((a, b) => b.usage - a.usage).slice(0, 10);
 
-    // Si no hay datos, enviamos algo mínimo para evitar gráficos rotos
     if (roomUsageData.length === 0) {
       roomUsageData.push({ name: 'Sin datos', usage: 0, capacity: 0 });
     }
 
-    // 3. Distribución por Programa
     const carreras = await prisma.carrera.findMany({
-      include: {
-        curso: true
-      }
+      where: userFilter,
+      include: { curso: true }
     });
 
     const programData = carreras.map(c => {
@@ -69,8 +70,8 @@ export async function GET(request: Request) {
       programDataPercentage.push({ name: 'Sin datos', value: 100 });
     }
 
-    // 4. Carga Docente
     const docentes = await prisma.docente.findMany({
+      where: userFilter,
       include: {
         horario_sesion: {
           where: { id_periodo: periodo, id_escenario: null },
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
       return {
         name: `${d.nom_docente.split(' ')[0]} ${d.ape_docente.split(' ')[0]}`,
         assigned: assigned,
-        max: 40 // 8 bloques × 5 días
+        max: 40
       }
     }).filter(d => d.assigned > 0).sort((a, b) => b.assigned - a.assigned).slice(0, 10);
 
@@ -91,7 +92,6 @@ export async function GET(request: Request) {
       teacherLoadData.push({ name: 'Sin datos', assigned: 0, max: 25 });
     }
 
-    // 5. Ocupación Semanal
     const dias = await prisma.dia_semana.findMany({
       orderBy: { id_dia: 'asc' }
     });
@@ -106,17 +106,16 @@ export async function GET(request: Request) {
       const docentesUnicos = new Set(sesionesDia.map(s => s.id_docente)).size;
 
       return {
-        day: dia.nom_dia.substring(0, 3), // Ej. "Lunes" -> "Lun"
+        day: dia.nom_dia.substring(0, 3),
         aulas: aulasUnicas,
         docentes: docentesUnicos
       };
     }));
 
-    // Stats
     const totalDocentesConCarga = teacherLoadData.filter(t => t.name !== 'Sin datos').length;
 
-    // Utilización media: promedio de TODAS las aulas (no solo top 10)
     const todasAulas = await prisma.aula.findMany({
+      where: userFilter,
       include: {
         horario_sesion: {
           where: { id_periodo: periodo, id_escenario: null },
@@ -134,7 +133,6 @@ export async function GET(request: Request) {
       ? Math.round(teacherLoadData.reduce((acc, curr) => acc + curr.assigned, 0) / totalDocentesConCarga)
       : 0;
 
-    // Cobertura real: materias que tienen al menos una asignación en el período
     const asignacionesPeriodo = await prisma.asignacion.findMany({
       where: { id_periodo: periodo },
       select: { id_curso: true }

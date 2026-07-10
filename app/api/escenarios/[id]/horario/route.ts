@@ -1,14 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionFromRequest } from '@/lib/auth';
 
-export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { id } = await props.params;
 
-    const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+    const periodo = await prisma.periodo_academico.findFirst({
+      where: { activo: true, id_usuario: session.userId }
+    });
     if (!periodo) {
       return NextResponse.json({ error: 'No hay periodo académico activo' }, { status: 400 });
     }
+
+    const userFilter = { id_usuario: session.userId };
 
     const [sesiones, escenario] = await Promise.all([
       prisma.horario_sesion.findMany({
@@ -40,9 +50,9 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       })
     ]);
 
-    // Get all teachers involved in this scenario (via asignaciones in the same ciclo/plan)
     const docentes = await prisma.docente.findMany({
       where: {
+        ...userFilter,
         competencia_docente: {
           some: {
             curso: {
@@ -71,7 +81,6 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       };
     }
 
-    // Mapear para el frontend
     const schedule = sesiones.map(s => ({
       id: s.id_horario,
       day: s.id_dia,

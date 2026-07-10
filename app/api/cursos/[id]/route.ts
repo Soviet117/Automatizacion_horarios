@@ -16,6 +16,13 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    const existing = await prisma.curso.findFirst({
+      where: { id_curso: id, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Curso no encontrado o sin permisos' }, { status: 404 });
+    }
+
     const nom_curso = body.name || body.nom_curso
     const tipo_curso = body.type !== undefined ? body.type : body.tipo_curso
     const creditos = body.creditos !== undefined ? Number(body.creditos) : undefined
@@ -44,7 +51,9 @@ export async function PUT(
       });
 
       if (id_docente !== undefined) {
-        const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+        const periodo = await prisma.periodo_academico.findFirst({
+          where: { activo: true, id_usuario: session.userId }
+        });
         const idPeriodoActivo = periodo?.id_periodo;
 
         await tx.asignacion.deleteMany({ where: { id_curso: id, id_periodo: idPeriodoActivo ?? undefined } });
@@ -53,7 +62,8 @@ export async function PUT(
           await tx.asignacion.create({
             data: {
               id_asignacion: `${id}-${idPeriodoActivo}`,
-              id_docente, id_curso: id, id_periodo: idPeriodoActivo!
+              id_docente, id_curso: id, id_periodo: idPeriodoActivo!,
+              id_usuario: session.userId,
             }
           });
         }
@@ -82,6 +92,13 @@ export async function DELETE(
     }
 
     const { id } = await params
+
+    const existing = await prisma.curso.findFirst({
+      where: { id_curso: id, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Curso no encontrado o sin permisos' }, { status: 404 });
+    }
 
     await prisma.asignacion.deleteMany({ where: { id_curso: id } })
     await prisma.curso.delete({ where: { id_curso: id } })

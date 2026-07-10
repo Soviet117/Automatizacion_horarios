@@ -15,6 +15,13 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    const existing = await prisma.aula.findFirst({
+      where: { id_aula: id, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Aula no encontrada o sin permisos' }, { status: 404 });
+    }
+
     const nom_aula = body.name || body.nom_aula
     const id_tipo_aula = body.type !== undefined ? body.type : body.id_tipo_aula
     const capacidad = body.capacity !== undefined ? Number(body.capacity) : (body.capacidad !== undefined ? Number(body.capacidad) : undefined)
@@ -27,7 +34,7 @@ export async function PUT(
       await prisma.tipo_aula.upsert({
         where: { id_tipo_aula },
         update: {},
-        create: { id_tipo_aula, nom_tipo_aula: id_tipo_aula }
+        create: { id_tipo_aula, nom_tipo_aula: id_tipo_aula, id_usuario: session.userId }
       });
     }
 
@@ -53,6 +60,13 @@ export async function DELETE(
     }
 
     const { id } = await params
+
+    const existing = await prisma.aula.findFirst({
+      where: { id_aula: id, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Aula no encontrada o sin permisos' }, { status: 404 });
+    }
 
     await prisma.horario_sesion.deleteMany({ where: { id_aula: id } })
     await prisma.aula.delete({ where: { id_aula: id } })

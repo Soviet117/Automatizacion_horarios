@@ -13,6 +13,14 @@ export async function PUT(
     }
 
     const { id } = await params
+
+    const existing = await prisma.docente.findFirst({
+      where: { id_docente: id, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Docente no encontrado o sin permisos' }, { status: 404 });
+    }
+
     const body = await request.json()
     
     const fullName = body.name || body.nom_docente || ''
@@ -77,6 +85,14 @@ export async function DELETE(
     }
 
     const { id } = await params
+
+    const existing = await prisma.docente.findFirst({
+      where: { id_docente: id, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Docente no encontrado o sin permisos' }, { status: 404 });
+    }
+
     await prisma.docente.delete({ where: { id_docente: id } })
 
     return NextResponse.json({ message: 'Docente eliminado exitosamente' })

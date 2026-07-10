@@ -1,14 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionFromRequest } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
+
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q')?.trim();
 
     if (!q || q.length < 2) {
       return NextResponse.json({ cursos: [], docentes: [], aulas: [] });
     }
+
+    const userFilter = userId ? { id_usuario: userId } : {};
 
     const [cursos, docentes, aulas] = await Promise.all([
       prisma.curso.findMany({
@@ -17,6 +23,7 @@ export async function GET(request: Request) {
             { nom_curso: { contains: q, mode: 'insensitive' } },
             { id_curso: { contains: q, mode: 'insensitive' } },
           ],
+          ...userFilter,
         },
         include: { carrera: { select: { nom_carrera: true } } },
         take: 5,
@@ -29,6 +36,7 @@ export async function GET(request: Request) {
             { ape_docente: { contains: q, mode: 'insensitive' } },
             { dni_docente: { contains: q, mode: 'insensitive' } },
           ],
+          ...userFilter,
         },
         take: 5,
         orderBy: { ape_docente: 'asc' },
@@ -39,6 +47,7 @@ export async function GET(request: Request) {
             { nom_aula: { contains: q, mode: 'insensitive' } },
             { id_aula: { contains: q, mode: 'insensitive' } },
           ],
+          ...userFilter,
         },
         include: { tipo_aula: { select: { nom_tipo_aula: true } } },
         take: 5,

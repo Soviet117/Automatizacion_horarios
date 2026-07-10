@@ -1,12 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { TIPO_AULA_MAP_BY_NAME } from '@/lib/tipoAulaMap';
+import { getSessionFromRequest } from '@/lib/auth';
 
-export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   try {
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { id } = await props.params;
 
-    const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+    const periodo = await prisma.periodo_academico.findFirst({
+      where: { activo: true, id_usuario: session.userId }
+    });
     if (!periodo) {
       return NextResponse.json({ error: 'No hay periodo académico activo' }, { status: 400 });
     }
@@ -19,10 +27,12 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       return NextResponse.json({ error: 'Escenario no encontrado' }, { status: 404 });
     }
 
-    // ── 1. Todas las asignaciones del ciclo/plan ──
+    const userFilter = { id_usuario: session.userId };
+
     const asignaciones = await prisma.asignacion.findMany({
       where: {
         id_periodo: periodo.id_periodo,
+        ...userFilter,
         curso: {
           ...(escenario.id_ciclo != null ? { id_ciclo: escenario.id_ciclo } : {}),
           ...(escenario.id_plan != null ? { id_plan: escenario.id_plan } : {}),
@@ -36,7 +46,6 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       }
     });
 
-    // ── 2. Sesiones ya asignadas ──
     const sesiones = await prisma.horario_sesion.findMany({
       where: {
         id_escenario: id,
@@ -79,9 +88,9 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       id_ciclo_curso: s.asignacion.curso.id_ciclo,
     }));
 
-    // ── 3. Disponibilidad docente ──
     const docentes = await prisma.docente.findMany({
       where: {
+        ...userFilter,
         competencia_docente: {
           some: {
             curso: {
@@ -108,14 +117,13 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
       };
     }
 
-    // ── 4. Aulas con tipo ──
     const aulas = await prisma.aula.findMany({
+      where: userFilter,
       include: { tipo_aula: true },
       orderBy: { nom_aula: 'asc' }
     });
 
-    // ── 5. Tipo mapping ──
-    const tiposSesion = await prisma.tipo_sesion.findMany();
+    const tiposSesion = await prisma.tipo_sesion.findMany({ where: userFilter });
     const tipoMapping: Record<string, string[]> = {};
     for (const ts of tiposSesion) {
       tipoMapping[ts.id_tipo_sesion] = TIPO_AULA_MAP_BY_NAME[ts.nom_tipo_sesion] || ['classroom'];

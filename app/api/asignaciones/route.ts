@@ -4,10 +4,17 @@ import { getSessionFromRequest, handleApiError } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
+
     const { searchParams } = new URL(request.url);
     const id_curso = searchParams.get('id_curso');
 
-    const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+    const userFilter = userId ? { id_usuario: userId } : {};
+
+    const periodo = await prisma.periodo_academico.findFirst({
+      where: { activo: true, ...userFilter }
+    });
     if (!periodo) {
       return NextResponse.json({ error: 'No hay periodo activo' }, { status: 400 });
     }
@@ -40,7 +47,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Faltan datos' }, { status: 400 });
     }
 
-    const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+    const periodo = await prisma.periodo_academico.findFirst({
+      where: { activo: true, id_usuario: session.userId }
+    });
     if (!periodo) {
       return NextResponse.json({ error: 'No hay periodo activo' }, { status: 400 });
     }
@@ -65,7 +74,8 @@ export async function POST(request: NextRequest) {
       data: {
         id_asignacion: `ASG-${crypto.randomUUID().substring(0, 8)}`,
         id_curso, id_docente,
-        id_periodo: periodo.id_periodo
+        id_periodo: periodo.id_periodo,
+        id_usuario: session.userId,
       },
       include: { docente: true }
     });
@@ -88,6 +98,13 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 });
+    }
+
+    const existing = await prisma.asignacion.findFirst({
+      where: { id_asignacion: id, id_usuario: session.userId }
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Asignación no encontrada o sin permisos' }, { status: 404 });
     }
 
     await prisma.asignacion.delete({ where: { id_asignacion: id } });

@@ -1,10 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handleApiError } from '@/lib/auth';
+import { getSessionFromRequest, handleApiError } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = getSessionFromRequest(request);
+    const userId = session?.userId;
+
+    const userFilter = userId ? { creado_por: userId } : {};
+
     const escenarios = await prisma.escenario.findMany({
+      where: userFilter,
       orderBy: [
         { estado: 'asc' },
         { creado_el: 'desc' }

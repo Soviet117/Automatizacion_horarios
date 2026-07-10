@@ -10,38 +10,48 @@ datasource db {
 model facultad {
   id_facultad  String    @id(map: "facultad_pk") @default(uuid()) @db.VarChar
   nom_facultad String    @db.VarChar
+  id_usuario   String?   @db.VarChar
   carrera      carrera[]
+  usuario      usuario?  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "facultad_usuario_fk")
 }
 
 model carrera {
   id_carrera   String         @id(map: "carrera_pk") @default(uuid()) @db.VarChar
   nom_carrera  String         @db.VarChar
   id_facultad  String         @db.VarChar
+  id_usuario   String?        @db.VarChar
   facultad     facultad       @relation(fields: [id_facultad], references: [id_facultad], onDelete: Cascade, map: "carrera_facultad_fk")
   curso        curso[]
   plan_estudio plan_estudio[]
+  usuario      usuario?       @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "carrera_usuario_fk")
 }
 
 model plan_estudio {
   id_plan    String     @id(map: "plan_estudio_pk") @default(uuid()) @db.VarChar
   nom_plan   String     @db.VarChar
   id_carrera String     @db.VarChar
+  id_usuario String?    @db.VarChar
   curso      curso[]
   carrera    carrera    @relation(fields: [id_carrera], references: [id_carrera], onDelete: Cascade, map: "plan_estudio_carrera_fk")
   escenario  escenario[]
+  usuario    usuario?   @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "plan_estudio_usuario_fk")
 }
 
 model ciclo {
-  id_ciclo  Int         @id(map: "ciclo_pk")
-  nom_ciclo String      @db.VarChar
-  curso     curso[]
-  escenario escenario[]
+  id_ciclo    Int         @id(map: "ciclo_pk")
+  nom_ciclo   String      @db.VarChar
+  id_usuario  String?     @db.VarChar
+  curso       curso[]
+  escenario   escenario[]
+  usuario     usuario?    @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "ciclo_usuario_fk")
 }
 
 model tipo_sesion {
   id_tipo_sesion  String  @id(map: "tipo_sesion_pk") @default(uuid()) @db.VarChar
   nom_tipo_sesion String  @db.VarChar
+  id_usuario      String? @db.VarChar
   curso           curso[]
+  usuario         usuario? @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "tipo_sesion_usuario_fk")
 }
 
 model curso {
@@ -107,15 +117,19 @@ model aula {
 model tipo_aula {
   id_tipo_aula  String @id(map: "tipo_aula_pk") @db.VarChar
   nom_tipo_aula String @db.VarChar
+  id_usuario    String? @db.VarChar
   aula          aula[]
+  usuario       usuario? @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "tipo_aula_usuario_fk")
 }
 
 model periodo_academico {
   id_periodo     String           @id(map: "periodo_academico_pk") @db.VarChar
   nom_periodo    String           @db.VarChar
   activo         Boolean          @default(true)
+  id_usuario     String?          @db.VarChar
   asignacion     asignacion[]
   horario_sesion horario_sesion[]
+  usuario        usuario?         @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "periodo_academico_usuario_fk")
 }
 
 model dia_semana {
@@ -138,9 +152,11 @@ model asignacion {
   id_docente     String            @db.VarChar
   id_curso       String            @db.VarChar
   id_periodo     String            @db.VarChar
+  id_usuario     String?           @db.VarChar
   curso          curso             @relation(fields: [id_curso], references: [id_curso], onDelete: Cascade, map: "asignacion_curso_fk")
   docente        docente           @relation(fields: [id_docente], references: [id_docente], onDelete: Cascade, map: "asignacion_docente_fk")
   periodo        periodo_academico @relation(fields: [id_periodo], references: [id_periodo], onDelete: Cascade, map: "asignacion_periodo_fk")
+  usuario        usuario?          @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, map: "asignacion_usuario_fk")
   horario_sesion horario_sesion[]
 
   @@unique([id_docente, id_curso, id_periodo], map: "asignacion_uq")
@@ -194,6 +210,14 @@ model usuario {
   docente               docente[]
   horario_sesion        horario_sesion[]
   notificacion          notificacion[]
+  facultad              facultad[]
+  carrera               carrera[]
+  plan_estudio          plan_estudio[]
+  ciclo                 ciclo[]
+  tipo_sesion           tipo_sesion[]
+  tipo_aula             tipo_aula[]
+  periodo_academico     periodo_academico[]
+  asignacion            asignacion[]
 }
 
 model notificacion {
