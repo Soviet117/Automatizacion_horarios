@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureDefaults } from '@/lib/ensureDefaults';
 
 export async function GET() {
   try {
+    await ensureDefaults(prisma);
     const [carreras, ciclos, tiposSesion, planesEstudio] = await Promise.all([
       prisma.carrera.findMany({ select: { id_carrera: true, nom_carrera: true } }),
       prisma.ciclo.findMany({ select: { id_ciclo: true, nom_ciclo: true }, orderBy: { id_ciclo: 'asc' } }),

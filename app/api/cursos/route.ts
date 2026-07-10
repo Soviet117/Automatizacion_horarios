@@ -3,9 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { DEFAULT_MODALIDAD } from '@/lib/constants'
 import { getSessionFromRequest, handleApiError } from '@/lib/auth'
 import { sanitizeTipoCurso, mapProgramToCarreraId } from '@/lib/utils'
+import { ensureDefaults } from '@/lib/ensureDefaults'
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDefaults(prisma);
     const session = getSessionFromRequest(request);
     const userId = session?.userId;
 

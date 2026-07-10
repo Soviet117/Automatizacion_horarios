@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { ensureDefaults } from '@/lib/ensureDefaults'
 
 export async function GET() {
   try {
+    await ensureDefaults(prisma);
     const [facultades, carreras, ciclos, tiposAula, periodos, planes, tipoSesiones, dias, bloques] = await Promise.all([
       prisma.facultad.findMany({
         orderBy: { nom_facultad: 'asc' },

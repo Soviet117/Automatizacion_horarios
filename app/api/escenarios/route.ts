@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest, handleApiError } from '@/lib/auth';
+import { ensureDefaults } from '@/lib/ensureDefaults';
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDefaults(prisma);
     const session = getSessionFromRequest(request);
     const userId = session?.userId;
 

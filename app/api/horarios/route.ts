@@ -4,6 +4,7 @@ import { prisma } from '../../../lib/prisma';
 import { DEFAULT_MODALIDAD } from '../../../lib/constants';
 import { getSessionFromRequest, handleApiError } from '@/lib/auth';
 import { sanitizeTipoCurso, formatDocenteDisponibilidad } from '@/lib/utils';
+import { ensureDefaults } from '@/lib/ensureDefaults';
 
 const DAYS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
 const SLOTS = [
@@ -19,6 +20,7 @@ const SLOTS = [
 
 export async function GET(request: NextRequest) {
   try {
+    await ensureDefaults(prisma);
     const session = getSessionFromRequest(request);
     const userId = session?.userId;
 
