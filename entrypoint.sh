@@ -23,6 +23,9 @@ else
     exit 1
 fi
 
+echo "Aplicando datos iniciales (seed)..."
+npx prisma db seed --skip-generate 2>/dev/null || echo "Seed omitido (datos ya existentes o no disponible)"
+
 echo "Iniciando Next.js en puerto $PORT..."
 "$@" &
 NEXT_PID=$!

@@ -12,8 +12,12 @@ export async function GET(request: NextRequest) {
     const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
     const idPeriodoActivo = periodo?.id_periodo;
 
+    const userFilter = userId
+      ? { OR: [{ id_usuario: null }, { id_usuario: userId }] }
+      : {};
+
     const cursos = await prisma.curso.findMany({
-      where: userId ? { id_usuario: userId } : {},
+      where: userFilter,
       include: {
         carrera: true,
         ciclo: true,

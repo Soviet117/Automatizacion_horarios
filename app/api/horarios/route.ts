@@ -31,14 +31,12 @@ export async function GET(request: NextRequest) {
   });
 
   const whereClause: any = {
-    id_usuario: userId,
+    ...(userId ? { OR: [{ id_usuario: null }, { id_usuario: userId }] } : {}),
     ...(periodo ? { id_periodo: periodo.id_periodo } : {})
   };
 
   if (publishedEscenario) {
     whereClause.id_escenario = publishedEscenario.id_escenario;
-  } else {
-    whereClause.id_escenario = null;
   }
 
   const sessions = await prisma.horario_sesion.findMany({

@@ -7,8 +7,12 @@ export async function GET(request: NextRequest) {
     const session = getSessionFromRequest(request);
     const userId = session?.userId;
 
+    const userFilter = userId
+      ? { OR: [{ id_usuario: null }, { id_usuario: userId }] }
+      : {};
+
     const aulas = await prisma.aula.findMany({
-      where: userId ? { id_usuario: userId } : {},
+      where: userFilter,
       include: {
         tipo_aula: true
       },
