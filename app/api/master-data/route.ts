@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
         orderBy: { id_ciclo: 'asc' },
       }),
       prisma.tipo_aula.findMany({
-        where: userFilter,
         orderBy: { nom_tipo_aula: 'asc' },
       }),
       prisma.periodo_academico.findMany({

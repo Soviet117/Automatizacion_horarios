@@ -3,13 +3,12 @@ import { PrismaClient } from '@prisma/client';
 let defaultsEnsured = false;
 
 export async function ensureDefaults(prisma: PrismaClient, userId?: string) {
+  await ensureTipoAulaGlobal(prisma);
   await ensureDiasYBloques(prisma);
 
   if (userId) {
-    await ensureTipoAulaForUser(prisma, userId);
     await ensurePeriodoActivoForUser(prisma, userId);
   } else if (!defaultsEnsured) {
-    await ensureTipoAulaGlobal(prisma);
     await ensurePeriodoActivoGlobal(prisma);
     defaultsEnsured = true;
   }
@@ -34,8 +33,9 @@ async function ensurePeriodoActivoForUser(prisma: PrismaClient, userId: string) 
   if (!exists) {
     const count = await prisma.periodo_academico.count({ where: { id_usuario: userId } });
     if (count === 0) {
+      const uniqueId = `PER-${userId.substring(0, 8)}`;
       await prisma.periodo_academico.create({
-        data: { id_periodo: '2026-1', nom_periodo: 'Semestre 2026-I', activo: true, id_usuario: userId },
+        data: { id_periodo: uniqueId, nom_periodo: 'Semestre 2026-I', activo: true, id_usuario: userId },
       });
     }
   }
@@ -49,24 +49,9 @@ async function ensureTipoAulaGlobal(prisma: PrismaClient) {
         { id_tipo_aula: 'classroom', nom_tipo_aula: 'Aula Teórica' },
         { id_tipo_aula: 'computer-lab', nom_tipo_aula: 'Laboratorio de Cómputo' },
         { id_tipo_aula: 'workshop', nom_tipo_aula: 'Taller Especializado' },
+        { id_tipo_aula: 'chemical-lab', nom_tipo_aula: 'Laboratorio Químico' },
       ],
     });
-  }
-}
-
-async function ensureTipoAulaForUser(prisma: PrismaClient, userId: string) {
-  const count = await prisma.tipo_aula.count({ where: { id_usuario: userId } });
-  if (count === 0) {
-    const globalCount = await prisma.tipo_aula.count();
-    if (globalCount === 0) {
-      await prisma.tipo_aula.createMany({
-        data: [
-          { id_tipo_aula: 'classroom', nom_tipo_aula: 'Aula Teórica', id_usuario: userId },
-          { id_tipo_aula: 'computer-lab', nom_tipo_aula: 'Laboratorio de Cómputo', id_usuario: userId },
-          { id_tipo_aula: 'workshop', nom_tipo_aula: 'Taller Especializado', id_usuario: userId },
-        ],
-      });
-    }
   }
 }
 

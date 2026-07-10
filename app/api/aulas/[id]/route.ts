@@ -34,7 +34,7 @@ export async function PUT(
       await prisma.tipo_aula.upsert({
         where: { id_tipo_aula },
         update: {},
-        create: { id_tipo_aula, nom_tipo_aula: id_tipo_aula, id_usuario: session.userId }
+        create: { id_tipo_aula, nom_tipo_aula: id_tipo_aula }
       });
     }
 
