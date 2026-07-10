@@ -1,17 +1,30 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
+import { promisify } from 'util';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resolve4 = promisify(dns.resolve4);
+
+let transporter: nodemailer.Transporter | null = null;
+
+async function getTransporter(): Promise<nodemailer.Transporter> {
+  if (!transporter) {
+    const addresses = await resolve4(process.env.SMTP_HOST!);
+    transporter = nodemailer.createTransport({
+      host: addresses[0],
+      port: Number(process.env.SMTP_PORT),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+  return transporter;
+}
 
 export async function sendVerificationEmail(to: string, code: string): Promise<void> {
-  await transporter.sendMail({
+  const t = await getTransporter();
+  await t.sendMail({
     from: process.env.EMAIL_FROM,
     to,
     subject: 'Optimizer EIS — Código de verificación',
@@ -34,7 +47,8 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
 }
 
 export async function sendNotificationEmail(to: string, subject: string, message: string): Promise<void> {
-  await transporter.sendMail({
+  const t = await getTransporter();
+  await t.sendMail({
     from: process.env.EMAIL_FROM,
     to,
     subject: `Optimizer EIS — ${subject}`,
