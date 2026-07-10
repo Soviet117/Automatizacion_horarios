@@ -3,6 +3,22 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { TIPO_AULA_MAP_BY_NAME } from '@/lib/tipoAulaMap';
+import { cookies } from 'next/headers';
+import { verifySessionToken } from '@/lib/auth';
+
+async function getCurrentUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('session')?.value;
+  if (!sessionToken) return null;
+  const payload = verifySessionToken(sessionToken);
+  return payload?.userId ?? null;
+}
+
+async function requireUserId(): Promise<string> {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('No autorizado');
+  return userId;
+}
 
 export async function getEscenarios(userId?: string) {
   const where = userId ? { creado_por: userId } : {};
@@ -121,17 +137,23 @@ export async function duplicateEscenario(id: string) {
 }
 
 export async function runOptimizationForEscenario(id_escenario: string) {
-  const { SchedulerService } = await import('@/lib/schedulerService');
-  
-  await prisma.escenario.update({
-    where: { id_escenario },
-    data: { estado: 'simulation' }
-  });
+  try {
+    const userId = await requireUserId();
+    const { SchedulerService } = await import('@/lib/schedulerService');
 
-  const result = await SchedulerService.optimizeSchedule(null as any, id_escenario);
+    await prisma.escenario.update({
+      where: { id_escenario },
+      data: { estado: 'simulation' }
+    });
 
-  revalidatePath('/dashboard/escenarios');
-  return result;
+    const result = await SchedulerService.optimizeSchedule(userId, id_escenario);
+
+    revalidatePath('/dashboard/escenarios');
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido al optimizar';
+    throw new Error(message);
+  }
 }
 
 export async function assignSessionToSlot(
@@ -142,7 +164,8 @@ export async function assignSessionToSlot(
   id_bloque: number,
   tipo_sesion?: string
 ) {
-  const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+  const userId = await requireUserId();
+  const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true, id_usuario: userId } });
   if (!periodo) throw new Error('No hay periodo académico activo');
 
   // Load asignacion with curso info
@@ -224,7 +247,7 @@ export async function assignSessionToSlot(
   });
 
   // 6. Update coverage
-  await updateEscenarioCoverage(id_escenario, periodo.id_periodo);
+  await updateEscenarioCoverage(id_escenario, periodo.id_periodo, userId);
 
   revalidatePath('/dashboard/escenarios');
   return { success: true, session };
@@ -241,9 +264,12 @@ export async function removeSession(id_horario: string) {
   await prisma.horario_sesion.delete({ where: { id_horario } });
 
   // Update coverage
-  const periodo = await prisma.periodo_academico.findFirst({ where: { activo: true } });
+  const userId = await getCurrentUserId();
+  const periodo = userId
+    ? await prisma.periodo_academico.findFirst({ where: { activo: true, id_usuario: userId } })
+    : await prisma.periodo_academico.findFirst({ where: { activo: true } });
   if (periodo) {
-    await updateEscenarioCoverage(session.id_escenario, periodo.id_periodo);
+    await updateEscenarioCoverage(session.id_escenario, periodo.id_periodo, userId);
   }
 
   revalidatePath('/dashboard/escenarios');
@@ -354,12 +380,14 @@ export async function moveSessionToSlot(
   return { success: true };
 }
 
-async function updateEscenarioCoverage(id_escenario: string, id_periodo: string) {
+async function updateEscenarioCoverage(id_escenario: string, id_periodo: string, userId?: string | null) {
   const escenario = await prisma.escenario.findUnique({ where: { id_escenario }, select: { id_ciclo: true } });
+  const userFilter = userId ? { id_usuario: userId } : {};
   const [asignaciones, sesionesAsignadas] = await Promise.all([
     prisma.asignacion.findMany({
       where: {
         id_periodo,
+        ...userFilter,
         curso: {
           id_ciclo: escenario?.id_ciclo ?? undefined
         }

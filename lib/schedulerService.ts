@@ -36,8 +36,10 @@ export class SchedulerService {
   }
 
   static async optimizeSchedule(userId: string, id_escenario?: string) {
+    const userFilter = userId ? { id_usuario: userId } : {};
+
     const periodoActivo = await prisma.periodo_academico.findFirst({
-      where: { activo: true }
+      where: { activo: true, ...userFilter }
     });
 
     if (!periodoActivo) {
@@ -59,17 +61,20 @@ export class SchedulerService {
 
     const [docentesDB, aulasDB, asignacionesDB] = await Promise.all([
       prisma.docente.findMany({
+        where: userFilter,
         include: {
           disponibilidad_docente: true,
           competencia_docente: true
         }
       }),
       prisma.aula.findMany({
+        where: userFilter,
         include: { tipo_aula: true }
       }),
       prisma.asignacion.findMany({
         where: {
           id_periodo: periodoActivo.id_periodo,
+          ...userFilter,
           curso: {
             ...(filtroCiclo !== undefined ? { id_ciclo: filtroCiclo } : {}),
             ...(filtroPlan !== undefined ? { id_plan: filtroPlan } : {}),
@@ -273,7 +278,7 @@ export class SchedulerService {
           id_bloque: s.slot,
           id_periodo: periodoActivo.id_periodo,
           tipo_sesion: sessionTipo,
-          id_usuario: null,
+          id_usuario: userId,
           id_escenario: targetEscenarioId
         };
       });
