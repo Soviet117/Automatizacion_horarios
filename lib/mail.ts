@@ -1,31 +1,10 @@
-import nodemailer from 'nodemailer';
-import dns from 'dns';
-import { promisify } from 'util';
+import sgMail from '@sendgrid/mail';
 
-const resolve4 = promisify(dns.resolve4);
-
-let transporter: nodemailer.Transporter | null = null;
-
-async function getTransporter(): Promise<nodemailer.Transporter> {
-  if (!transporter) {
-    const addresses = await resolve4(process.env.SMTP_HOST!);
-    transporter = nodemailer.createTransport({
-      host: addresses[0],
-      port: Number(process.env.SMTP_PORT),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  }
-  return transporter;
-}
+sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
 
 export async function sendVerificationEmail(to: string, code: string): Promise<void> {
-  const t = await getTransporter();
-  await t.sendMail({
-    from: process.env.EMAIL_FROM,
+  await sgMail.send({
+    from: process.env.EMAIL_FROM!,
     to,
     subject: 'Optimizer EIS — Código de verificación',
     html: `
@@ -47,9 +26,8 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
 }
 
 export async function sendNotificationEmail(to: string, subject: string, message: string): Promise<void> {
-  const t = await getTransporter();
-  await t.sendMail({
-    from: process.env.EMAIL_FROM,
+  await sgMail.send({
+    from: process.env.EMAIL_FROM!,
     to,
     subject: `Optimizer EIS — ${subject}`,
     html: `
