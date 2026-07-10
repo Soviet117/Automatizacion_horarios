@@ -3,6 +3,7 @@ services:
     name: proyecto-horario
     runtime: docker
     plan: free
+    port: 10000
     dockerfilePath: ./Dockerfile
     dockerContext: .
     envVars:
