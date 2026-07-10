@@ -36,6 +36,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=10000
+ENV NODE_OPTIONS="--dns-result-order=ipv4first"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-dev \
