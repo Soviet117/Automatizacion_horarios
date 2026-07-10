@@ -30,5 +30,5 @@ services:
 databases:
   - name: proyecto-horario-db
     plan: free
-    databaseName: DB_horarios
+    databaseName: db_horarios
     ipAllowList: []
