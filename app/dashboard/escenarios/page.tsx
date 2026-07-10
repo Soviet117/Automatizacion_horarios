@@ -323,9 +323,9 @@ export default function EscenariosPage() {
   // ── Drag & Drop handlers ──────────────────────────────────────────────────
   const isSlotValidForTeacher = (teacherId: string, day: number, slot: number) => {
     const ta = teachersAvail[teacherId];
-    if (!ta) return false;
+    if (!ta) return true;
     const dayAvail = ta.availability[day];
-    return dayAvail?.includes(slot) ?? false;
+    return dayAvail?.includes(slot) ?? true;
   };
 
   const handleDragStart = (e: React.DragEvent, item: { type: 'unassigned' | 'assigned'; data: any }) => {
@@ -339,9 +339,8 @@ export default function EscenariosPage() {
   const handleDragOver = (e: React.DragEvent, day: number, slot: number) => {
     if (!draggedItem) return;
     const teacherId = draggedItem.data.teacherId || draggedItem.data.id_docente;
-    if (!isSlotValidForTeacher(teacherId, day, slot)) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = isSlotValidForTeacher(teacherId, day, slot) ? 'move' : 'none';
     setHoveredDay(day);
     setHoveredSlot(slot);
   };
@@ -358,7 +357,11 @@ export default function EscenariosPage() {
     if (!draggedItem || !sel) return;
 
     const teacherId = draggedItem.data.teacherId || draggedItem.data.id_docente;
-    if (!isSlotValidForTeacher(teacherId, day, slot)) return;
+    if (!isSlotValidForTeacher(teacherId, day, slot)) {
+      setDragFeedback('✗ El docente no tiene disponibilidad en este horario');
+      setTimeout(() => setDragFeedback(''), 4000);
+      return;
+    }
 
     try {
       if (draggedItem.type === 'unassigned') {

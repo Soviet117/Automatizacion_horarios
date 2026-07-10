@@ -291,7 +291,7 @@ export async function moveSessionToSlot(
   const escenario = await prisma.escenario.findUnique({
     where: { id_escenario: session.id_escenario }
   });
-  if (!escenario || escenario.estado !== 'draft' && escenario.estado !== 'simulation') {
+  if (!escenario || (escenario.estado !== 'draft' && escenario.estado !== 'simulation')) {
     throw new Error('Solo puedes mover sesiones en escenarios Borrador o Simulación.');
   }
 
@@ -349,7 +349,7 @@ export async function moveSessionToSlot(
   const occupiedIds = new Set(occupiedRooms.map(r => r.id_aula));
 
   const tipoNombre = session.asignacion.curso.tipo_sesion.nom_tipo_sesion;
-  const tiposPermitidos = TIPO_AULA_MAP_BY_NAME[tipoNombre] || ['TA01'];
+  const tiposPermitidos = TIPO_AULA_MAP_BY_NAME[tipoNombre] || ['classroom'];
 
   const availableRoom = await prisma.aula.findFirst({
     where: {
