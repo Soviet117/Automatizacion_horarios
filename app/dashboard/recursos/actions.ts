@@ -3,9 +3,24 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { Teacher, Classroom, RoomTypeValue } from '@/lib/types';
+import { cookies } from 'next/headers';
+import { verifySessionToken } from '@/lib/auth';
+
+async function getCurrentUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('session')?.value;
+  if (!sessionToken) return null;
+  const payload = verifySessionToken(sessionToken);
+  return payload?.userId ?? null;
+}
 
 export async function getDocentes(): Promise<Teacher[]> {
+  const userId = await getCurrentUserId();
+
   const docentes = await prisma.docente.findMany({
+    where: userId
+      ? { OR: [{ id_usuario: null }, { id_usuario: userId }] }
+      : {},
     include: {
       usuario: true,
       disponibilidad_docente: true,
@@ -36,23 +51,7 @@ export async function createDocente(data: { dni: string, nombre: string, apellid
   if (existing) throw new Error('Ya existe un docente con este DNI');
 
   const id_docente = crypto.randomUUID();
-
-  let id_usuario = null;
-  if (data.email) {
-     const existingUser = await prisma.usuario.findUnique({ where: { email: data.email } });
-     if (existingUser) {
-         id_usuario = existingUser.id_usuario;
-     } else {
-         const user = await prisma.usuario.create({
-            data: {
-              email: data.email,
-              nombre: `${data.nombre} ${data.apellido}`,
-              password: 'password_temporal', 
-            }
-         });
-         id_usuario = user.id_usuario;
-     }
-  }
+  const id_usuario = await getCurrentUserId();
 
   // Seed lookups (Días y Bloques) si no existen
   const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
@@ -114,23 +113,10 @@ export async function updateDocente(id_docente: string, data: { dni: string, nom
   const existing = await prisma.docente.findFirst({ where: { dni_docente: data.dni, NOT: { id_docente } } });
   if (existing) throw new Error('Ya existe otro docente con este DNI');
 
-  const doc = await prisma.docente.findUnique({ where: { id_docente }, include: { usuario: true } });
+  const doc = await prisma.docente.findUnique({ where: { id_docente } });
   if (!doc) throw new Error('Docente no encontrado');
 
-  let id_usuario = doc.id_usuario;
-  if (data.email) {
-     if (id_usuario) {
-        await prisma.usuario.update({ where: { id_usuario }, data: { email: data.email, nombre: `${data.nombre} ${data.apellido}` } });
-     } else {
-        const existingUser = await prisma.usuario.findUnique({ where: { email: data.email } });
-        if (existingUser) {
-           id_usuario = existingUser.id_usuario;
-        } else {
-           const user = await prisma.usuario.create({ data: { email: data.email, nombre: `${data.nombre} ${data.apellido}`, password: 'password_temporal' } });
-           id_usuario = user.id_usuario;
-        }
-     }
-  }
+  const id_usuario = await getCurrentUserId();
 
   await prisma.disponibilidad_docente.deleteMany({ where: { id_docente } });
   await prisma.competencia_docente.deleteMany({ where: { id_docente } });
