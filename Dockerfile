@@ -29,11 +29,22 @@ COPY . .
 RUN npm run build
 
 
-FROM node:20-alpine AS runner
+FROM node:20-bookworm-slim AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g prisma@6.19.3
+
+COPY csp_solver/requirements.txt /app/csp_solver/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r /app/csp_solver/requirements.txt
+
+COPY csp_solver/main.py /app/csp_solver/main.py
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
