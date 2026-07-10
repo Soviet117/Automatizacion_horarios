@@ -70,6 +70,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"status": "ERROR", "message": str(exc), "traceback": tb}
     )
 
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "csp-solver"}
+
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "4.0"}
