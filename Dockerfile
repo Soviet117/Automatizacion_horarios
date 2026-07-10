@@ -34,6 +34,8 @@ FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
+ENV PORT=10000
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-pip python3-dev \
@@ -55,7 +57,7 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
-EXPOSE 3000
+EXPOSE 10000
 
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["node", "server.js"]
