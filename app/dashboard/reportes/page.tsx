@@ -2,7 +2,8 @@
 
 import {
   BarChart2, Download, FileText, TrendingUp, Users,
-  Building2, BookOpen, Clock, ChevronDown, Loader2
+  Building2, BookOpen, Clock, ChevronDown, Loader2,
+  CheckCircle2, GitBranch, AlertCircle
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -72,6 +73,8 @@ export default function ReportesPage() {
   }
 
   const { roomUsageData = [], teacherLoadData = [], weeklyData = [], programData = [], stats = {} } = data || {};
+  const escenariosModo: string = (stats as any).escenariosModo ?? 'all';
+  const escenariosCount: number = (stats as any).escenariosCount ?? 0;
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto print-area" ref={reportRef}>
@@ -105,6 +108,35 @@ export default function ReportesPage() {
           </button>
         </div>
       </div>
+
+      {/* Context banner */}
+      {!loading && data && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 18px', borderRadius: 12, fontSize: 13, fontWeight: 600,
+          background: escenariosModo === 'published' ? '#f0fdf4' : '#fffbeb',
+          border: `1.5px solid ${escenariosModo === 'published' ? '#a7f3d0' : '#fde68a'}`,
+          color: escenariosModo === 'published' ? '#065f46' : '#92400e',
+        }}>
+          {escenariosModo === 'published'
+            ? <CheckCircle2 style={{ width: 16, height: 16, flexShrink: 0 }} />
+            : <GitBranch style={{ width: 16, height: 16, flexShrink: 0 }} />}
+          {escenariosModo === 'published'
+            ? `Datos basados en el horario oficial publicado.`
+            : `No hay horario publicado. Datos agregados de ${escenariosCount} escenario${escenariosCount !== 1 ? 's' : ''} (borradores/simulaciones).`}
+        </div>
+      )}
+
+      {!loading && data && (stats as any).horasAsignadas === 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 18px', borderRadius: 12, fontSize: 13, fontWeight: 600,
+          background: '#fef2f2', border: '1.5px solid #fecaca', color: '#b91c1c',
+        }}>
+          <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
+          No hay sesiones asignadas en los escenarios de este periodo. Genera un horario en el módulo de Escenarios.
+        </div>
+      )}
 
       {loading ? (
         <div className="flex-1 flex flex-col items-center justify-center min-h-[400px]" style={{ color: 'var(--text-tertiary)' }}>
