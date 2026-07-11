@@ -49,7 +49,9 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
     const sesiones = await prisma.horario_sesion.findMany({
       where: {
         id_escenario: id,
-        asignacion: { id_periodo: periodo.id_periodo }
+        // NO filtrar por periodo de la asignación: el id_escenario ya identifica
+        // las sesiones del escenario. El filtro cruzado por periodo excluye sesiones
+        // de escenarios generados en periodos anteriores.
       },
       include: {
         asignacion: {

@@ -24,7 +24,10 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       prisma.horario_sesion.findMany({
         where: {
           id_escenario: id,
-          asignacion: { id_periodo: periodo.id_periodo }
+          // El id_escenario ya discrimina unívocamente las sesiones.
+          // NO filtrar por periodo de la asignación: haría invisible cualquier
+          // sesión cuya asignación pertenezca a un periodo distinto al activo,
+          // devolviendo datos de una optimización anterior.
         },
         include: {
           asignacion: {
